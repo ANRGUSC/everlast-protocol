@@ -9,7 +9,7 @@ const tradingLinks = [
 ];
 
 const developerLinks = [
-  { href: 'https://github.com/your-org/everlast-protocol', label: 'GitHub', external: true },
+  { href: 'https://github.com/ANRGUSC/everlast-protocol', label: 'GitHub', external: true },
   { href: `https://sepolia.basescan.org/address/${CONTRACTS.optionManager}`, label: 'Contracts (BaseScan)', external: true },
 ];
 
