@@ -7,8 +7,8 @@ import { Header } from '@/components/Header';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'EverLast - Perpetual Options',
-  description: 'Options that never expire. Trade perpetual calls and puts on Base with continuous funding.',
+  title: 'EverLast - Everlasting Options',
+  description: 'Options that never expire. Trade everlasting calls and puts on Base with continuous funding.',
 };
 
 export default function RootLayout({

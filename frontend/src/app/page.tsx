@@ -47,7 +47,7 @@ export default function Dashboard() {
           Options That <span className="text-primary-500">Never Expire</span>
         </h1>
         <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-          Trade perpetual calls and puts on Base. Your positions live as NFTs
+          Trade everlasting calls and puts on Base. Your positions live as NFTs
           with continuous funding - hold forever or exercise anytime.
         </p>
       </div>

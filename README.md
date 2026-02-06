@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">🔮 EverLast Protocol ♾️</h1>
   <p align="center">
-    <strong>Perpetual Options That Never Expire</strong>
+    <strong>Everlasting Options That Never Expire</strong>
   </p>
   <p align="center">
     Trade call and put options on Base with no expiration dates. Positions are NFTs with continuous funding.
@@ -90,7 +90,7 @@ Traditional options expire, forcing traders to:
 
 ### The Solution
 
-EverLast creates **perpetual options** that never expire:
+EverLast creates **everlasting options** that never expire:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
