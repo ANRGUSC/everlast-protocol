@@ -30,3 +30,4 @@ hardhat.config.*.bak
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+.claude/
