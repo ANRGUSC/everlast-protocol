@@ -1,564 +1,376 @@
-# EverLast - Perpetual Options Protocol
+<p align="center">
+  <h1 align="center">EverLast Protocol</h1>
+  <p align="center">
+    <strong>Perpetual Options That Never Expire</strong>
+  </p>
+  <p align="center">
+    Trade call and put options on Base with no expiration dates. Positions are NFTs with continuous funding.
+  </p>
+</p>
 
-A decentralized perpetual options protocol built on Base. Options that never expire, represented as NFTs with continuous funding flowing from long to short positions.
+<p align="center">
+  <a href="https://github.com/ANRGUSC/everlast-protocol/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
+  </a>
+  <a href="https://soliditylang.org/">
+    <img src="https://img.shields.io/badge/Solidity-0.8.20-363636?logo=solidity" alt="Solidity">
+  </a>
+  <a href="https://base.org/">
+    <img src="https://img.shields.io/badge/Chain-Base-0052FF?logo=coinbase" alt="Base">
+  </a>
+  <a href="https://nextjs.org/">
+    <img src="https://img.shields.io/badge/Frontend-Next.js-black?logo=next.js" alt="Next.js">
+  </a>
+  <a href="https://sepolia.basescan.org/address/0x92768885E13B791683Cee58532125c35E943840E">
+    <img src="https://img.shields.io/badge/Status-Live%20on%20Testnet-green" alt="Testnet">
+  </a>
+</p>
+
+---
+
+## Highlights
+
+- **No Expiration** - Options stay open indefinitely, no rolling required
+- **NFT Positions** - Trade your options on any NFT marketplace
+- **Continuous Funding** - Time value flows from long to short automatically
+- **Fully Collateralized** - 100% backed, no counterparty risk
+- **Exercise Anytime** - American-style, exercise when in-the-money
+- **Built on Base** - Fast, cheap transactions on Ethereum L2
+
+---
+
+## Quick Start
+
+```bash
+# Clone the repo
+git clone https://github.com/ANRGUSC/everlast-protocol.git
+cd everlast-protocol
+
+# Install dependencies
+npm install
+
+# Run tests
+npx hardhat test
+
+# Start frontend
+cd frontend && npm install && npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) and connect your wallet to Base Sepolia.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [How It Works](#how-it-works)
-- [Architecture](#architecture)
-- [Deployed Contracts](#deployed-contracts)
-- [Getting Started](#getting-started)
-- [Smart Contracts](#smart-contracts)
-- [Frontend](#frontend)
-- [Testing](#testing)
-- [Technical Details](#technical-details)
-- [Security Considerations](#security-considerations)
-- [License](#license)
-
----
-
-## Overview
-
-EverLast is a perpetual options protocol that enables users to trade call and put options without expiration dates. Unlike traditional options that expire worthless or require rolling, EverLast options remain active indefinitely through a continuous funding mechanism.
-
-**Key Innovation:** Options positions are represented as ERC-721 NFTs, making them transferable and tradeable on secondary markets.
-
-### The Problem with Traditional Options
-
-- **Expiration Risk:** Traditional options expire, often worthless
-- **Rolling Costs:** Maintaining exposure requires expensive rolling
-- **Liquidity Fragmentation:** Multiple expiries fragment liquidity
-- **Complexity:** Managing multiple expiration dates is complex
-
-### The EverLast Solution
-
-- **No Expiration:** Positions stay open as long as funding is maintained
-- **Continuous Funding:** Long pays "rent" to short, representing time value
-- **NFT Positions:** Tradeable, transferable option positions
-- **Simplified UX:** One strike price, no expiry management
-
----
-
-## Features
-
-### Core Features
-
-- **Perpetual Call Options:** Right to buy ETH at strike price, anytime
-- **Perpetual Put Options:** Right to sell ETH at strike price, anytime
-- **NFT-Based Positions:** Long positions are ERC-721 tokens
-- **Continuous Funding:** Time value flows from long to short
-- **American-Style Exercise:** Exercise anytime when in-the-money
-- **Liquidation Mechanism:** Undercollateralized positions can be liquidated
-
-### Technical Features
-
-- **ERC-4626 Vaults:** Standardized collateral management
-- **Chainlink Oracles:** Reliable price feeds for ETH/USD
-- **Configurable Risk Parameters:** Adjustable collateral ratios, liquidation bonuses
-- **On-Chain SVG NFTs:** Dynamic metadata with option details
+- [How It Works](#-how-it-works)
+- [Deployed Contracts](#-deployed-contracts)
+- [Installation](#-installation)
+- [Smart Contracts](#-smart-contracts)
+- [Frontend](#-frontend)
+- [Testing](#-testing)
+- [Architecture](#-architecture)
+- [Configuration](#%EF%B8%8F-configuration)
+- [Security](#-security)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
 ## How It Works
 
-### 1. Opening a Position
+### The Problem
 
-The **short seller** creates an option by:
-1. Choosing option type (CALL or PUT)
-2. Setting the strike price
-3. Specifying the position size
-4. Depositing collateral:
-   - **CALL:** Deposit WETH (the underlying)
-   - **PUT:** Deposit USDC (strike price coverage)
-5. Specifying the long position holder
+Traditional options expire, forcing traders to:
+- Roll positions (expensive)
+- Manage multiple expiries (complex)
+- Accept fragmented liquidity
 
-An NFT is minted to the long position holder, representing their right to exercise.
+### The Solution
 
-### 2. Continuous Funding
-
-The **long holder** pays continuous funding to the short:
-- Funding rate is based on option's intrinsic value + time value
-- Calculated using Black-Scholes-inspired pricing
-- Deducted from long's funding balance automatically
-- If funding runs out, position closes
-
-**Funding Rate Formula:**
-```
-fundingPerSecond = (intrinsicValue + timeValue) * size * fundingRateMultiplier / secondsPerYear
-```
-
-### 3. Exercise
-
-The **long holder** can exercise when the option is in-the-money:
-
-**CALL Exercise (ETH price > strike):**
-- Long pays strike price in USDC
-- Long receives ETH from collateral
-
-**PUT Exercise (ETH price < strike):**
-- Long delivers ETH
-- Long receives strike price in USDC
-
-### 4. Liquidation
-
-If a position becomes undercollateralized:
-- Anyone can liquidate it
-- Liquidator pays the long's intrinsic value
-- Liquidator receives the collateral at a discount (5% bonus)
-- Position is closed
-
-### 5. Position Lifecycle
+EverLast creates **perpetual options** that never expire:
 
 ```
-+-------------+     +-------------+     +-------------+
-|   ACTIVE    |---->|  EXERCISED  |     |  LIQUIDATED |
-|             |     +-------------+     +-------------+
-|  Funding    |            ^                   ^
-|  accrues    |            |                   |
-|             |     Long exercises      Position under-
-+-------------+     when ITM            collateralized
-       |
-       | Funding depleted
-       v
-+-------------+
-|   CLOSED    |
-+-------------+
+┌─────────────────────────────────────────────────────────────┐
+│  SHORT SELLER                         LONG HOLDER           │
+│  ┌─────────────┐                     ┌─────────────┐        │
+│  │ Deposits    │ ──── NFT ────────▶  │ Receives    │        │
+│  │ Collateral  │                     │ Option NFT  │        │
+│  └─────────────┘                     └─────────────┘        │
+│        ▲                                    │               │
+│        │         Continuous Funding         │               │
+│        └────────────────────────────────────┘               │
+│                   (rent payment)                            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## Architecture
-
-### Contract Architecture
-
-```
-+---------------------------------------------------------------+
-|                        OptionManager                           |
-|  (Core controller - manages position lifecycle)                |
-+---------------------------------------------------------------+
-        |              |              |              |
-        v              v              v              v
-+--------------+ +--------------+ +--------------+ +--------------+
-| OptionNFT    | | USDCVault    | | WETHVault    | |FundingOracle |
-| (ERC-721)    | | (ERC-4626)   | | (ERC-4626)   | | (Pricing)    |
-+--------------+ +--------------+ +--------------+ +--------------+
-                                                          |
-                                                          v
-                                                   +--------------+
-                                                   |  RiskParams  |
-                                                   |  (Config)    |
-                                                   +--------------+
-                                                          |
-                                                          v
-                                                   +--------------+
-                                                   |  Chainlink   |
-                                                   |  Price Feed  |
-                                                   +--------------+
-```
-
-### Data Flow
-
-1. **Open Position:** User -> OptionManager -> Vault (deposit) -> NFT (mint)
-2. **Fund Position:** User -> OptionManager -> USDC transfer
-3. **Exercise:** User -> OptionManager -> Vault (withdraw) -> Asset transfer
-4. **Liquidate:** Liquidator -> OptionManager -> Vault (withdraw) -> Payouts
+| Action | What Happens |
+|--------|--------------|
+| **Open** | Short deposits collateral, Long receives NFT |
+| **Fund** | Long pays "rent" to keep position alive |
+| **Exercise** | Long exercises ITM option, receives payout |
+| **Liquidate** | Anyone can liquidate undercollateralized positions |
 
 ---
 
 ## Deployed Contracts
 
-### Base Sepolia Testnet (Chain ID: 84532)
+### Base Sepolia (Testnet)
 
-| Contract | Address |
-|----------|---------|
-| RiskParams | `0xe24ecE1aD46657D23fcab41e0585FBA5c4E8E61C` |
-| USDC Vault | `0xc6703DEE49Bf14119e63c8fB3Fa0b60212442c7e` |
-| WETH Vault | `0xf5c6f1843Bf910A00B615c038565B0c1dEaA90cA` |
-| PerpetualOptionNFT | `0xC7831161CB20d1517aD7ad642a6F41727b6AFF55` |
-| FundingOracle | `0xC46D4e5Ca887a47118Ca5C777972251b39902D77` |
-| OptionManager | `0x92768885E13B791683Cee58532125c35E943840E` |
+| Contract | Address | Etherscan |
+|----------|---------|-----------|
+| OptionManager | `0x92768885E13B791683Cee58532125c35E943840E` | [View](https://sepolia.basescan.org/address/0x92768885E13B791683Cee58532125c35E943840E) |
+| OptionNFT | `0xC7831161CB20d1517aD7ad642a6F41727b6AFF55` | [View](https://sepolia.basescan.org/address/0xC7831161CB20d1517aD7ad642a6F41727b6AFF55) |
+| FundingOracle | `0xC46D4e5Ca887a47118Ca5C777972251b39902D77` | [View](https://sepolia.basescan.org/address/0xC46D4e5Ca887a47118Ca5C777972251b39902D77) |
+| USDC Vault | `0xc6703DEE49Bf14119e63c8fB3Fa0b60212442c7e` | [View](https://sepolia.basescan.org/address/0xc6703DEE49Bf14119e63c8fB3Fa0b60212442c7e) |
+| WETH Vault | `0xf5c6f1843Bf910A00B615c038565B0c1dEaA90cA` | [View](https://sepolia.basescan.org/address/0xf5c6f1843Bf910A00B615c038565B0c1dEaA90cA) |
+| RiskParams | `0xe24ecE1aD46657D23fcab41e0585FBA5c4E8E61C` | [View](https://sepolia.basescan.org/address/0xe24ecE1aD46657D23fcab41e0585FBA5c4E8E61C) |
 
-### External Contracts Used
+### External Dependencies
 
-| Contract | Address |
-|----------|---------|
+| Token | Address |
+|-------|---------|
 | USDC (Circle) | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| WETH (Base) | `0x4200000000000000000000000000000000000006` |
+| WETH | `0x4200000000000000000000000000000000000006` |
 | Chainlink ETH/USD | `0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1` |
 
 ---
 
-## Getting Started
+## Installation
 
 ### Prerequisites
 
-- Node.js v18+
-- npm or yarn
+- Node.js 18+
 - Git
 - MetaMask or Coinbase Wallet
 
-### Installation
+### Setup
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd eo_protocol_base
+# Clone repository
+git clone https://github.com/ANRGUSC/everlast-protocol.git
+cd everlast-protocol
 
-# Install smart contract dependencies
+# Install contract dependencies
 npm install
 
-# Install frontend dependencies
-cd frontend
-npm install
-```
+# Create environment file
+echo "PRIVATE_KEY=your_private_key_here" > .env
 
-### Environment Setup
-
-Create a `.env` file in the root directory:
-
-```env
-PRIVATE_KEY=your_private_key_here
-```
-
-### Compile Contracts
-
-```bash
+# Compile contracts
 npx hardhat compile
 ```
 
-### Run Tests
+### Deploy (Optional)
 
 ```bash
-npx hardhat test
-```
-
-### Deploy Contracts
-
-```bash
+# Deploy to Base Sepolia
 npx hardhat run scripts/deploy.js --network baseSepolia
 ```
-
-### Start Frontend
-
-```bash
-cd frontend
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
 ## Smart Contracts
 
-### OptionManager.sol
+### Overview
 
-The core controller managing the entire position lifecycle.
+| Contract | Purpose |
+|----------|---------|
+| `OptionManager.sol` | Core controller - opens, exercises, liquidates positions |
+| `PerpetualOptionNFT.sol` | ERC-721 tokens representing long positions |
+| `CollateralVault.sol` | ERC-4626 vaults holding WETH/USDC collateral |
+| `FundingOracle.sol` | Chainlink integration + funding rate calculation |
+| `RiskParams.sol` | Configurable protocol parameters |
 
-**Key Functions:**
+### Usage Examples
 
-| Function | Description |
-|----------|-------------|
-| `openPosition()` | Create a new option position |
-| `exercise()` | Exercise an in-the-money option |
-| `liquidate()` | Liquidate an undercollateralized position |
-| `depositFunding()` | Add funding to a long position |
-| `accrueFunding()` | Process pending funding payments |
-| `releaseCollateral()` | Withdraw excess collateral (short) |
-
-**Opening a Position:**
+**Open a CALL Position:**
 
 ```solidity
-// Approve OptionManager to spend your collateral
-weth.approve(optionManagerAddress, collateralAmount);
+// 1. Approve collateral
+weth.approve(optionManager, 1 ether);
 
-// Open a call option position
+// 2. Open position
 optionManager.openPosition(
-    IFundingOracle.OptionType.CALL,  // Option type
-    wethAddress,                      // Underlying asset
-    2500e6,                          // Strike price ($2500 in USDC decimals)
-    1e18,                            // Size (1 ETH in wei)
-    longBuyerAddress,                // Long position holder (receives NFT)
-    100e6                            // Initial funding from long (USDC)
+    OptionType.CALL,    // Call option
+    weth,               // Underlying
+    2500e6,             // Strike: $2500
+    1e18,               // Size: 1 ETH
+    buyerAddress,       // Long holder
+    100e6               // Initial funding: $100
 );
 ```
 
-### PerpetualOptionNFT.sol
+**Exercise an Option:**
 
-ERC-721 contract representing long option positions.
+```solidity
+// Approve strike payment (for calls)
+usdc.approve(optionManager, strikeAmount);
 
-**Features:**
-- On-chain SVG generation
-- Dynamic metadata with option details
-- Burnable on exercise/liquidation/close
+// Exercise
+optionManager.exercise(tokenId);
+```
 
-### CollateralVault.sol
+**Liquidate:**
 
-ERC-4626 compliant vault for collateral management.
-
-**Features:**
-- Deposit/withdraw collateral
-- Reserve collateral for positions
-- Release collateral on position close
-- Track reserved vs available collateral
-
-### FundingOracle.sol
-
-Pricing and funding rate calculations.
-
-**Key Functions:**
-
-| Function | Description |
-|----------|-------------|
-| `getSpotPrice()` | Get current ETH price from Chainlink |
-| `getIntrinsicValue()` | Calculate option's intrinsic value |
-| `getMarkPrice()` | Calculate option's mark price (intrinsic + time value) |
-| `getFundingPerSecond()` | Calculate funding rate |
-
-### RiskParams.sol
-
-Configurable protocol risk parameters.
-
-**Parameters:**
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `minCollateralRatio` | 100% (1e18) | Minimum collateral ratio required |
-| `maintenanceRatio` | 120% (1.2e18) | Liquidation threshold |
-| `liquidationBonus` | 5% (0.05e18) | Liquidator reward percentage |
-| `baseImpliedVolatility` | 80% (0.8e18) | IV for time value pricing |
-| `minPositionSize` | 0.01 ETH | Minimum position size allowed |
-| `oracleStalenessThreshold` | 3600s | Maximum oracle price age |
+```solidity
+// Check if liquidatable
+if (optionManager.isLiquidatable(tokenId)) {
+    optionManager.liquidate(tokenId);
+    // Liquidator receives collateral at 5% discount
+}
+```
 
 ---
 
 ## Frontend
 
-### Pages
-
-| Page | Path | Description |
-|------|------|-------------|
-| Dashboard | `/` | Overview, ETH price, position counts, quick actions |
-| Open Position | `/open` | Create new call/put option positions |
-| My Positions | `/positions` | View and manage your long and short positions |
-| Liquidate | `/liquidate` | Find and liquidate undercollateralized positions |
-| Faucet | `/faucet` | Wrap ETH to WETH for testing |
-
 ### Tech Stack
 
-- **Framework:** Next.js 14 (App Router)
-- **Styling:** Tailwind CSS
-- **Web3:** wagmi v2 + viem
-- **Wallet:** RainbowKit
-- **Chain:** Base Sepolia
+| Technology | Purpose |
+|------------|---------|
+| Next.js 14 | React framework |
+| wagmi v2 | Ethereum hooks |
+| viem | Ethereum library |
+| RainbowKit | Wallet connection |
+| Tailwind CSS | Styling |
 
-### Using the Frontend
+### Pages
 
-1. **Connect Wallet:** Click "Connect Wallet" and select Base Sepolia network
-2. **Get Test Tokens:** Go to Faucet and wrap ETH to get WETH
-3. **Open Position:** Go to Open Position, select CALL/PUT, set parameters
-4. **Manage Positions:** View your positions, add funding, or exercise
-5. **Liquidate:** Search for liquidatable positions and earn rewards
+| Page | Route | Description |
+|------|-------|-------------|
+| Dashboard | `/` | Overview and stats |
+| Open Position | `/open` | Create new options |
+| My Positions | `/positions` | Manage your positions |
+| Liquidate | `/liquidate` | Liquidate positions |
+| Faucet | `/faucet` | Get test WETH |
+
+### Run Locally
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ---
 
 ## Testing
 
-### Run All Tests
-
 ```bash
+# Run all tests
 npx hardhat test
-```
 
-### Test with Gas Reports
-
-```bash
+# Run with gas reporting
 REPORT_GAS=true npx hardhat test
+
+# Run specific test file
+npx hardhat test test/PerpetualOptions.test.js
 ```
 
-### Test Categories
+### Test Coverage
 
-1. **RiskParams Tests** - Parameter updates, access control, validation
-2. **CollateralVault Tests** - Deposits, withdrawals, ERC-4626 compliance
-3. **FundingOracle Tests** - Price fetching, intrinsic value, funding rates
-4. **OptionManager Tests** - Position lifecycle, exercise, liquidation
-5. **PerpetualOptionNFT Tests** - Minting, burning, metadata
-
-### Sample Test Output
-
-```
-  RiskParams
-    ✓ Should initialize with correct default values
-    ✓ Should allow owner to update minCollateralRatio
-    ✓ Should allow owner to update maintenanceRatio
-    ...
-
-  CollateralVault
-    ✓ Should allow deposits
-    ✓ Should track reserved collateral
-    ...
-
-  OptionManager
-    ✓ Should open a call position
-    ✓ Should open a put position
-    ✓ Should exercise a call option
-    ✓ Should liquidate undercollateralized position
-    ...
-
-  24 passing (5s)
-```
+- Position opening (CALL/PUT)
+- Funding accrual and payments
+- Exercise mechanics
+- Liquidation scenarios
+- Access control
+- Edge cases
 
 ---
 
-## Technical Details
+## Architecture
 
-### Decimal Handling
-
-| Asset | Decimals | Scale Factor |
-|-------|----------|--------------|
-| ETH/WETH | 18 | 1e18 |
-| USDC | 6 | 1e6 |
-| Percentages | 18 | 1e18 (100% = 1e18) |
-| Chainlink ETH/USD | 8 | 1e8 |
-
-### Funding Rate Calculation
-
-```solidity
-// Time value using simplified Black-Scholes approximation
-timeValue = (baseIV * spotPrice) / 10;
-
-// Intrinsic value
-// CALL: max(0, spotPrice - strike)
-// PUT:  max(0, strike - spotPrice)
-
-// Funding per second
-fundingPerSecond = (intrinsic + timeValue) * size / SECONDS_PER_YEAR;
+```
+                    ┌──────────────────────┐
+                    │    OptionManager     │
+                    │   (Core Controller)  │
+                    └──────────┬───────────┘
+                               │
+       ┌───────────┬───────────┼───────────┬───────────┐
+       │           │           │           │           │
+       ▼           ▼           ▼           ▼           ▼
+┌───────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│ OptionNFT │ │  USDC   │ │  WETH   │ │ Funding │ │  Risk   │
+│ (ERC-721) │ │  Vault  │ │  Vault  │ │ Oracle  │ │ Params  │
+└───────────┘ └─────────┘ └─────────┘ └────┬────┘ └─────────┘
+                                           │
+                                           ▼
+                                    ┌───────────┐
+                                    │ Chainlink │
+                                    │ ETH/USD   │
+                                    └───────────┘
 ```
 
-### Collateral Requirements
+### Data Flow
 
-**CALL Options:**
-```
-requiredCollateral = size * minCollateralRatio / 1e18
-// Denominated in WETH
-```
-
-**PUT Options:**
-```
-requiredCollateral = strike * size * minCollateralRatio / 1e36
-// Denominated in USDC
-```
-
-### Liquidation Threshold
-
-A position becomes liquidatable when:
-```
-collateralValue < intrinsicValue * size * maintenanceRatio / 1e18
-```
+1. **Open:** User → OptionManager → Vault (deposit) → NFT (mint)
+2. **Fund:** User → OptionManager → USDC transfer
+3. **Exercise:** User → OptionManager → Vault (withdraw) → Payout
+4. **Liquidate:** Liquidator → OptionManager → Vault → Rewards
 
 ---
 
-## Security Considerations
+## Configuration
 
-### Implemented Safeguards
+### Risk Parameters
 
-- **ReentrancyGuard:** All state-changing functions protected against reentrancy
-- **SafeERC20:** Safe token transfer wrappers to handle non-standard tokens
-- **Access Control:** Owner-only administrative functions
-- **Input Validation:** Zero address checks, range validation, size minimums
-- **Oracle Staleness:** Price feed freshness verification
-- **Pause Mechanism:** Emergency protocol pause capability
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `minCollateralRatio` | 100% | Minimum collateral required |
+| `maintenanceRatio` | 120% | Liquidation threshold |
+| `liquidationBonus` | 5% | Liquidator reward |
+| `minPositionSize` | 0.01 ETH | Minimum option size |
+| `baseImpliedVolatility` | 80% | IV for pricing |
 
-### Known Limitations
+### Decimals
 
-1. **Single Oracle Dependency:** Relies solely on Chainlink ETH/USD feed
-2. **No Slippage Protection:** Exercise occurs at current oracle price
-3. **Centralized Admin:** Owner can modify risk parameters
-4. **Testnet Deployment:** Not audited for mainnet use
-
-### Recommended Improvements for Production
-
-- [ ] Multi-oracle price aggregation (Chainlink + Uniswap TWAP)
-- [ ] Time-weighted average prices for manipulation resistance
-- [ ] Decentralized governance (DAO) for parameter changes
-- [ ] Professional security audit by reputable firm
-- [ ] Formal verification of critical functions
-- [ ] Bug bounty program
-- [ ] Gradual mainnet rollout with caps
+| Asset | Decimals |
+|-------|----------|
+| ETH/WETH | 18 |
+| USDC | 6 |
+| Chainlink Price | 8 |
+| Percentages | 18 (1e18 = 100%) |
 
 ---
 
-## Gas Optimization
+## Security
 
-The contracts employ several gas optimization techniques:
+### Implemented
 
-- **viaIR Compiler:** Enabled for optimized bytecode generation
-- **Storage Packing:** Related variables packed in single slots
-- **Minimal External Calls:** Batched operations where possible
-- **View Function Optimization:** Efficient read patterns
+- ReentrancyGuard on all state changes
+- SafeERC20 for token transfers
+- Owner-only admin functions
+- Oracle staleness checks
+- Emergency pause mechanism
 
----
+### Limitations
 
-## Project Structure
+> **Warning:** This protocol is deployed on testnet only. It has not been audited. Do not use with real funds.
 
-```
-eo_protocol_base/
-├── contracts/
-│   ├── interfaces/
-│   │   ├── IOptionManager.sol
-│   │   ├── ICollateralVault.sol
-│   │   ├── IPerpetualOptionNFT.sol
-│   │   ├── IFundingOracle.sol
-│   │   └── IRiskParams.sol
-│   ├── mocks/
-│   │   ├── MockERC20.sol
-│   │   └── MockPriceFeed.sol
-│   ├── OptionManager.sol
-│   ├── CollateralVault.sol
-│   ├── PerpetualOptionNFT.sol
-│   ├── FundingOracle.sol
-│   └── RiskParams.sol
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── page.tsx (Dashboard)
-│   │   │   ├── open/page.tsx
-│   │   │   ├── positions/page.tsx
-│   │   │   ├── liquidate/page.tsx
-│   │   │   └── faucet/page.tsx
-│   │   ├── components/
-│   │   │   ├── Header.tsx
-│   │   │   └── Providers.tsx
-│   │   └── config/
-│   │       ├── contracts.ts
-│   │       └── wagmi.ts
-│   └── package.json
-├── scripts/
-│   └── deploy.js
-├── test/
-│   └── OptionManager.test.js
-├── hardhat.config.js
-├── package.json
-└── README.md
-```
+- Single oracle dependency (Chainlink)
+- Centralized admin controls
+- No slippage protection on exercise
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please follow these steps:
+Contributions are welcome!
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`npx hardhat test`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+```bash
+# Fork the repo
+# Create your branch
+git checkout -b feature/amazing-feature
+
+# Make changes and test
+npx hardhat test
+
+# Commit and push
+git commit -m "Add amazing feature"
+git push origin feature/amazing-feature
+
+# Open a Pull Request
+```
 
 ---
 
@@ -568,22 +380,23 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## Acknowledgments
+## Links
 
-- [OpenZeppelin](https://openzeppelin.com/) - Secure smart contract libraries
-- [Chainlink](https://chain.link/) - Reliable decentralized oracle network
-- [Base](https://base.org/) - Ethereum L2 scaling solution
-- [RainbowKit](https://rainbowkit.com/) - Wallet connection UI
-- [wagmi](https://wagmi.sh/) - React hooks for Ethereum
-
----
-
-## Support
-
-For questions, issues, or feature requests:
-- Open an issue on GitHub
-- Contact the development team
+- [Base Sepolia Faucet](https://www.alchemy.com/faucets/base-sepolia)
+- [Circle USDC Faucet](https://faucet.circle.com/)
+- [Base Documentation](https://docs.base.org/)
+- [Chainlink Price Feeds](https://docs.chain.link/data-feeds/price-feeds)
 
 ---
 
-**Disclaimer:** This protocol is deployed on testnet for demonstration and educational purposes. It has not undergone a professional security audit and should not be used with real funds without proper security review and risk assessment. Use at your own risk.
+<p align="center">
+  Built with Solidity + Next.js on Base
+</p>
+
+---
+
+**Sources for README best practices:**
+- [jehna/readme-best-practices](https://github.com/jehna/readme-best-practices)
+- [Hatica - Best Practices For An Eye Catching GitHub Readme](https://www.hatica.io/blog/best-practices-for-github-readme/)
+- [freeCodeCamp - How to Write a Good README](https://www.freecodecamp.org/news/how-to-write-a-good-readme-file/)
+- [Make a README](https://www.makeareadme.com/)
