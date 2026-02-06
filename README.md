@@ -393,10 +393,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
   Built with Solidity + Next.js on Base
 </p>
 
----
-
-**Sources for README best practices:**
-- [jehna/readme-best-practices](https://github.com/jehna/readme-best-practices)
-- [Hatica - Best Practices For An Eye Catching GitHub Readme](https://www.hatica.io/blog/best-practices-for-github-readme/)
-- [freeCodeCamp - How to Write a Good README](https://www.freecodecamp.org/news/how-to-write-a-good-readme-file/)
-- [Make a README](https://www.makeareadme.com/)
