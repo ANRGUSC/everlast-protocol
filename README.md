@@ -9,6 +9,9 @@
 </p>
 
 <p align="center">
+  <a href="https://everlast-protocol.vercel.app/">
+    <img src="https://img.shields.io/badge/Live%20Demo-everlast--protocol.vercel.app-brightgreen" alt="Live Demo">
+  </a>
   <a href="https://github.com/ANRGUSC/everlast-protocol/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
   </a>
@@ -372,8 +375,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Links
 
-- [Base Sepolia Faucet](https://www.alchemy.com/faucets/base-sepolia)
-- [Circle USDC Faucet](https://faucet.circle.com/)
+- **[Live Demo](https://everlast-protocol.vercel.app/)** - Try the protocol
+- [Base Sepolia Faucet](https://www.alchemy.com/faucets/base-sepolia) - Get test ETH
+- [Circle USDC Faucet](https://faucet.circle.com/) - Get test USDC
 - [Base Documentation](https://docs.base.org/)
 - [Chainlink Price Feeds](https://docs.chain.link/data-feeds/price-feeds)
 
