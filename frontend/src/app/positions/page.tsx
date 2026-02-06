@@ -37,6 +37,8 @@ function PositionCard({
   const { address } = useAccount();
   const [showFundingModal, setShowFundingModal] = useState(false);
   const [fundingAmount, setFundingAmount] = useState('100');
+  const [showReleaseModal, setShowReleaseModal] = useState(false);
+  const [releaseAmount, setReleaseAmount] = useState('');
 
   // Get position data
   const { data: position } = useReadContract({
@@ -80,6 +82,12 @@ function PositionCard({
 
   const { writeContract: approve, data: approveHash } = useWriteContract();
   const { isLoading: isApproving } = useWaitForTransactionReceipt({ hash: approveHash });
+
+  const { writeContract: accrueFunding, data: accrueHash } = useWriteContract();
+  const { isLoading: isAccruing } = useWaitForTransactionReceipt({ hash: accrueHash });
+
+  const { writeContract: releaseCollateral, data: releaseHash } = useWriteContract();
+  const { isLoading: isReleasing } = useWaitForTransactionReceipt({ hash: releaseHash });
 
   if (!position || position.status !== PositionStatus.ACTIVE) {
     return null;
@@ -149,6 +157,28 @@ function PositionCard({
     }, 2000);
   };
 
+  const handleAccrueFunding = () => {
+    accrueFunding({
+      address: CONTRACTS.optionManager,
+      abi: OPTION_MANAGER_ABI,
+      functionName: 'accrueFunding',
+      args: [tokenId],
+    });
+  };
+
+  const handleReleaseCollateral = () => {
+    const decimals = isCall ? 18 : 6;
+    const amount = parseUnits(releaseAmount, decimals);
+
+    releaseCollateral({
+      address: CONTRACTS.optionManager,
+      abi: OPTION_MANAGER_ABI,
+      functionName: 'releaseCollateral',
+      args: [tokenId, amount],
+    });
+    setShowReleaseModal(false);
+  };
+
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
       <div className={`px-4 py-2 ${isCall ? 'bg-call/20' : 'bg-put/20'} flex items-center justify-between`}>
@@ -185,6 +215,14 @@ function PositionCard({
               {isLong ? `$${Number(fundingBalance).toLocaleString()}` : collateral}
             </p>
           </div>
+          {!isLong && (
+            <div>
+              <span className="text-gray-400">Long Funding Left</span>
+              <p className={`font-medium ${Number(fundingBalance) < 10 ? 'text-red-400' : 'text-white'}`}>
+                ${Number(fundingBalance).toLocaleString()}
+              </p>
+            </div>
+          )}
         </div>
 
         {pendingFunding && pendingFunding > 0n && (
@@ -199,7 +237,7 @@ function PositionCard({
           </div>
         )}
 
-        {/* Actions */}
+        {/* Long Actions */}
         {isLong && (
           <div className="flex gap-2 pt-2">
             {isITM && (
@@ -216,6 +254,25 @@ function PositionCard({
               className="flex-1 bg-primary-600 hover:bg-primary-500 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
             >
               Add Funding
+            </button>
+          </div>
+        )}
+
+        {/* Short Actions */}
+        {!isLong && (
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={handleAccrueFunding}
+              disabled={isAccruing || !pendingFunding || pendingFunding === 0n}
+              className="flex-1 bg-yellow-600 hover:bg-yellow-500 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+            >
+              {isAccruing ? 'Processing...' : 'Collect Funding'}
+            </button>
+            <button
+              onClick={() => setShowReleaseModal(true)}
+              className="flex-1 bg-orange-600 hover:bg-orange-500 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+            >
+              Release Collateral
             </button>
           </div>
         )}
@@ -246,6 +303,40 @@ function PositionCard({
                 className="flex-1 bg-primary-600 hover:bg-primary-500 text-white py-2 px-4 rounded-lg"
               >
                 {isDepositing || isApproving ? 'Processing...' : 'Deposit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Release Collateral Modal */}
+      {showReleaseModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold text-white mb-4">Release Collateral</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Current collateral: {collateral}. You can only release excess collateral above the minimum required.
+            </p>
+            <input
+              type="number"
+              value={releaseAmount}
+              onChange={(e) => setReleaseAmount(e.target.value)}
+              placeholder={isCall ? 'Amount in WETH' : 'Amount in USDC'}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg py-3 px-4 text-white mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowReleaseModal(false)}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReleaseCollateral}
+                disabled={isReleasing || !releaseAmount}
+                className="flex-1 bg-orange-600 hover:bg-orange-500 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg"
+              >
+                {isReleasing ? 'Processing...' : 'Release'}
               </button>
             </div>
           </div>
