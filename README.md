@@ -62,17 +62,17 @@ Open [http://localhost:3000](http://localhost:3000) and connect your wallet to B
 
 ## Table of Contents
 
-- [How It Works](#-how-it-works)
-- [Deployed Contracts](#-deployed-contracts)
-- [Installation](#-installation)
-- [Smart Contracts](#-smart-contracts)
-- [Frontend](#-frontend)
-- [Testing](#-testing)
-- [Architecture](#-architecture)
-- [Configuration](#%EF%B8%8F-configuration)
-- [Security](#-security)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [How It Works](#how-it-works)
+- [Deployed Contracts](#deployed-contracts)
+- [Installation](#installation)
+- [Smart Contracts](#smart-contracts)
+- [Frontend](#frontend)
+- [Testing](#testing)
+- [Architecture](#architecture)
+- [Configuration](#configuration)
+- [Security](#security)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -152,9 +152,6 @@ cd everlast-protocol
 
 # Install contract dependencies
 npm install
-
-# Create environment file
-echo "PRIVATE_KEY=your_private_key_here" > .env
 
 # Compile contracts
 npx hardhat compile
