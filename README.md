@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">EverLast Protocol</h1>
+  <h1 align="center">🔮 EverLast Protocol ♾️</h1>
   <p align="center">
     <strong>Perpetual Options That Never Expire</strong>
   </p>
