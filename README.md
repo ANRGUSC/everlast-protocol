@@ -59,7 +59,7 @@ npx hardhat test
 cd frontend && npm install && npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and connect your wallet to Base Sepolia.
+Open [https://everlast-protocol.vercel.app](https://everlast-protocol.vercel.app) and connect your wallet to Base Sepolia.
 
 ---
 
