@@ -160,13 +160,6 @@ echo "PRIVATE_KEY=your_private_key_here" > .env
 npx hardhat compile
 ```
 
-### Deploy (Optional)
-
-```bash
-# Deploy to Base Sepolia
-npx hardhat run scripts/deploy.js --network baseSepolia
-```
-
 ---
 
 ## Smart Contracts
