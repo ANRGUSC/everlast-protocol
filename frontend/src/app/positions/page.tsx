@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useConfig, useReadContract, useWriteContract } from 'wagmi';
+import { waitForTransactionReceipt } from '@wagmi/core';
 import { formatUnits, parseUnits } from 'viem';
 import {
   CONTRACTS,
@@ -35,10 +36,13 @@ function PositionCard({
   onAction: () => void;
 }) {
   const { address } = useAccount();
+  const config = useConfig();
   const [showFundingModal, setShowFundingModal] = useState(false);
   const [fundingAmount, setFundingAmount] = useState('100');
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [releaseAmount, setReleaseAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
 
   // Get position data
   const { data: position } = useReadContract({
@@ -73,21 +77,8 @@ function PositionCard({
     args: [tokenId],
   });
 
-  // Write functions
-  const { writeContract: exercise, data: exerciseHash } = useWriteContract();
-  const { isLoading: isExercising } = useWaitForTransactionReceipt({ hash: exerciseHash });
-
-  const { writeContract: depositFunding, data: depositHash } = useWriteContract();
-  const { isLoading: isDepositing } = useWaitForTransactionReceipt({ hash: depositHash });
-
-  const { writeContract: approve, data: approveHash } = useWriteContract();
-  const { isLoading: isApproving } = useWaitForTransactionReceipt({ hash: approveHash });
-
-  const { writeContract: accrueFunding, data: accrueHash } = useWriteContract();
-  const { isLoading: isAccruing } = useWaitForTransactionReceipt({ hash: accrueHash });
-
-  const { writeContract: releaseCollateral, data: releaseHash } = useWriteContract();
-  const { isLoading: isReleasing } = useWaitForTransactionReceipt({ hash: releaseHash });
+  // Single write hook for all transactions
+  const { writeContractAsync } = useWriteContract();
 
   if (!position || position.status !== PositionStatus.ACTIVE) {
     return null;
@@ -104,79 +95,135 @@ function PositionCard({
   const isITM = intrinsicValue && intrinsicValue > 0n;
 
   const handleExercise = async () => {
-    // For calls: need to approve USDC for strike payment
-    // For puts: need to approve WETH for delivery
-    if (isCall) {
-      const strikePayment = (position.strike * position.size) / BigInt(1e18);
-      approve({
-        address: CONTRACTS.usdc,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [CONTRACTS.optionManager, strikePayment],
-      });
-    } else {
-      approve({
-        address: CONTRACTS.weth,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [CONTRACTS.optionManager, position.size],
-      });
-    }
+    try {
+      setIsProcessing(true);
 
-    // Then exercise
-    setTimeout(() => {
-      exercise({
+      // Step 1: Approve the token the long needs to pay
+      if (isCall) {
+        setProcessingStatus('Approving USDC...');
+        const strikePayment = (position.strike * position.size) / BigInt(1e18);
+        const approveHash = await writeContractAsync({
+          address: CONTRACTS.usdc,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [CONTRACTS.optionManager, strikePayment],
+        });
+        setProcessingStatus('Waiting for approval confirmation...');
+        await waitForTransactionReceipt(config, { hash: approveHash });
+      } else {
+        setProcessingStatus('Approving WETH...');
+        const approveHash = await writeContractAsync({
+          address: CONTRACTS.weth,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [CONTRACTS.optionManager, position.size],
+        });
+        setProcessingStatus('Waiting for approval confirmation...');
+        await waitForTransactionReceipt(config, { hash: approveHash });
+      }
+
+      // Step 2: Exercise (only after approval is confirmed on-chain)
+      setProcessingStatus('Exercising option...');
+      const exerciseHash = await writeContractAsync({
         address: CONTRACTS.optionManager,
         abi: OPTION_MANAGER_ABI,
         functionName: 'exercise',
         args: [tokenId],
       });
-    }, 2000);
+      setProcessingStatus('Waiting for confirmation...');
+      await waitForTransactionReceipt(config, { hash: exerciseHash });
+
+      onAction(); // refresh positions
+    } catch (err) {
+      console.error('Exercise failed:', err);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStatus('');
+    }
   };
 
-  const handleDepositFunding = () => {
-    const amount = parseUnits(fundingAmount, 6);
+  const handleDepositFunding = async () => {
+    try {
+      setIsProcessing(true);
+      const amount = parseUnits(fundingAmount, 6);
 
-    // First approve USDC
-    approve({
-      address: CONTRACTS.usdc,
-      abi: ERC20_ABI,
-      functionName: 'approve',
-      args: [CONTRACTS.optionManager, amount],
-    });
+      // Step 1: Approve USDC
+      setProcessingStatus('Approving USDC...');
+      const approveHash = await writeContractAsync({
+        address: CONTRACTS.usdc,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [CONTRACTS.optionManager, amount],
+      });
+      setProcessingStatus('Waiting for approval confirmation...');
+      await waitForTransactionReceipt(config, { hash: approveHash });
 
-    // Then deposit
-    setTimeout(() => {
-      depositFunding({
+      // Step 2: Deposit funding (only after approval is confirmed on-chain)
+      setProcessingStatus('Depositing funding...');
+      const depositHash = await writeContractAsync({
         address: CONTRACTS.optionManager,
         abi: OPTION_MANAGER_ABI,
         functionName: 'depositFunding',
         args: [tokenId, amount],
       });
+      setProcessingStatus('Waiting for confirmation...');
+      await waitForTransactionReceipt(config, { hash: depositHash });
+
       setShowFundingModal(false);
-    }, 2000);
+      onAction(); // refresh positions
+    } catch (err) {
+      console.error('Deposit funding failed:', err);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStatus('');
+    }
   };
 
-  const handleAccrueFunding = () => {
-    accrueFunding({
-      address: CONTRACTS.optionManager,
-      abi: OPTION_MANAGER_ABI,
-      functionName: 'accrueFunding',
-      args: [tokenId],
-    });
+  const handleAccrueFunding = async () => {
+    try {
+      setIsProcessing(true);
+      setProcessingStatus('Collecting funding...');
+      const hash = await writeContractAsync({
+        address: CONTRACTS.optionManager,
+        abi: OPTION_MANAGER_ABI,
+        functionName: 'accrueFunding',
+        args: [tokenId],
+      });
+      setProcessingStatus('Waiting for confirmation...');
+      await waitForTransactionReceipt(config, { hash });
+      onAction(); // refresh positions
+    } catch (err) {
+      console.error('Accrue funding failed:', err);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStatus('');
+    }
   };
 
-  const handleReleaseCollateral = () => {
-    const decimals = isCall ? 18 : 6;
-    const amount = parseUnits(releaseAmount, decimals);
+  const handleReleaseCollateral = async () => {
+    try {
+      setIsProcessing(true);
+      const decimals = isCall ? 18 : 6;
+      const amount = parseUnits(releaseAmount, decimals);
 
-    releaseCollateral({
-      address: CONTRACTS.optionManager,
-      abi: OPTION_MANAGER_ABI,
-      functionName: 'releaseCollateral',
-      args: [tokenId, amount],
-    });
-    setShowReleaseModal(false);
+      setProcessingStatus('Releasing collateral...');
+      const hash = await writeContractAsync({
+        address: CONTRACTS.optionManager,
+        abi: OPTION_MANAGER_ABI,
+        functionName: 'releaseCollateral',
+        args: [tokenId, amount],
+      });
+      setProcessingStatus('Waiting for confirmation...');
+      await waitForTransactionReceipt(config, { hash });
+
+      setShowReleaseModal(false);
+      onAction(); // refresh positions
+    } catch (err) {
+      console.error('Release collateral failed:', err);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStatus('');
+    }
   };
 
   return (
@@ -237,21 +284,29 @@ function PositionCard({
           </div>
         )}
 
+        {/* Processing Status */}
+        {isProcessing && processingStatus && (
+          <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-2 text-sm text-primary-400 animate-pulse">
+            {processingStatus}
+          </div>
+        )}
+
         {/* Long Actions */}
         {isLong && (
           <div className="flex gap-2 pt-2">
             {isITM && (
               <button
                 onClick={handleExercise}
-                disabled={isExercising || isApproving}
+                disabled={isProcessing}
                 className="flex-1 bg-call hover:bg-call/80 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
               >
-                {isExercising || isApproving ? 'Processing...' : 'Exercise'}
+                {isProcessing ? 'Processing...' : 'Exercise'}
               </button>
             )}
             <button
               onClick={() => setShowFundingModal(true)}
-              className="flex-1 bg-primary-600 hover:bg-primary-500 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+              disabled={isProcessing}
+              className="flex-1 bg-primary-600 hover:bg-primary-500 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
             >
               Add Funding
             </button>
@@ -263,14 +318,15 @@ function PositionCard({
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleAccrueFunding}
-              disabled={isAccruing || !pendingFunding || pendingFunding === 0n}
+              disabled={isProcessing || !pendingFunding || pendingFunding === 0n}
               className="flex-1 bg-yellow-600 hover:bg-yellow-500 disabled:bg-gray-600 disabled:text-gray-400 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
             >
-              {isAccruing ? 'Processing...' : 'Collect Funding'}
+              {isProcessing ? 'Processing...' : 'Collect Funding'}
             </button>
             <button
               onClick={() => setShowReleaseModal(true)}
-              className="flex-1 bg-orange-600 hover:bg-orange-500 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+              disabled={isProcessing}
+              className="flex-1 bg-orange-600 hover:bg-orange-500 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
             >
               Release Collateral
             </button>
@@ -299,10 +355,10 @@ function PositionCard({
               </button>
               <button
                 onClick={handleDepositFunding}
-                disabled={isDepositing || isApproving}
-                className="flex-1 bg-primary-600 hover:bg-primary-500 text-white py-2 px-4 rounded-lg"
+                disabled={isProcessing}
+                className="flex-1 bg-primary-600 hover:bg-primary-500 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg"
               >
-                {isDepositing || isApproving ? 'Processing...' : 'Deposit'}
+                {isProcessing ? processingStatus || 'Processing...' : 'Deposit'}
               </button>
             </div>
           </div>
@@ -333,10 +389,10 @@ function PositionCard({
               </button>
               <button
                 onClick={handleReleaseCollateral}
-                disabled={isReleasing || !releaseAmount}
+                disabled={isProcessing || !releaseAmount}
                 className="flex-1 bg-orange-600 hover:bg-orange-500 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg"
               >
-                {isReleasing ? 'Processing...' : 'Release'}
+                {isProcessing ? processingStatus || 'Processing...' : 'Release'}
               </button>
             </div>
           </div>
