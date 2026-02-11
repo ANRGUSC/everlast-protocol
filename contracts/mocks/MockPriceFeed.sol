@@ -12,6 +12,7 @@ contract MockPriceFeed {
     int256 private _price;
     uint256 private _updatedAt;
     uint80 private _roundId;
+    uint80 private _answeredInRound;
 
     constructor(
         uint8 decimals_,
@@ -25,6 +26,7 @@ contract MockPriceFeed {
         _price = initialPrice_;
         _updatedAt = block.timestamp;
         _roundId = 1;
+        _answeredInRound = 1;
     }
 
     function decimals() external view returns (uint8) {
@@ -55,7 +57,7 @@ contract MockPriceFeed {
             _price,
             _updatedAt,
             _updatedAt,
-            _roundId
+            _answeredInRound
         );
     }
 
@@ -87,6 +89,15 @@ contract MockPriceFeed {
         _price = newPrice;
         _updatedAt = block.timestamp;
         _roundId++;
+        _answeredInRound = _roundId;
+    }
+
+    /**
+     * @notice Set the answered-in round independently (for testing stale rounds)
+     * @param answeredInRound_ The answered-in round to set
+     */
+    function setAnsweredInRound(uint80 answeredInRound_) external {
+        _answeredInRound = answeredInRound_;
     }
 
     /**
