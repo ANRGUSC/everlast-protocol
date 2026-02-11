@@ -180,14 +180,13 @@ contract FundingOracle is IFundingOracle, Ownable {
     /**
      * @notice Get the funding rate per second for a position
      * @dev Funding = (markPrice - intrinsicValue) * size per second
-     * @param optionType The type of option (CALL or PUT)
      * @param underlying The underlying asset address
      * @param strike The strike price (scaled by 1e6)
      * @param size The position size (scaled by 1e18)
      * @return fundingPerSecond The funding amount per second (scaled by 1e6)
      */
     function getFundingPerSecond(
-        OptionType optionType,
+        OptionType,
         address underlying,
         uint256 strike,
         uint256 size
@@ -195,7 +194,6 @@ contract FundingOracle is IFundingOracle, Ownable {
         uint256 spotPrice8 = getSpotPrice(underlying);
         uint256 spot = spotPrice8 / 100; // Convert to 6 decimals
 
-        uint256 intrinsic = _calculateIntrinsic(optionType, spot, strike);
         uint256 timeValue = _calculateTimeValue(underlying, spot, strike);
 
         // Funding per second = time_value * size / (365 * 24 * 3600)

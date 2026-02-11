@@ -312,7 +312,6 @@ contract OptionManager is IOptionManager, ReentrancyGuard, Ownable {
         if (position.optionType == IFundingOracle.OptionType.CALL) {
             // Liquidator receives WETH collateral at discount
             uint256 collateralValue = position.collateralAmount;
-            uint256 bonus = (collateralValue * riskParams.liquidationBonus()) / SCALE;
             liquidatorReward = collateralValue - longPayout;
 
             // Pay long their intrinsic value (in USDC from liquidator)
@@ -327,8 +326,6 @@ contract OptionManager is IOptionManager, ReentrancyGuard, Ownable {
             wethVault.withdrawCollateralTo(tokenId, liquidator, position.collateralAmount);
         } else {
             // For puts, pay from USDC collateral
-            uint256 bonus = (longPayout * riskParams.liquidationBonus()) / SCALE;
-
             // Pay long their intrinsic value
             if (longPayout > 0 && longPayout <= position.collateralAmount) {
                 usdcVault.withdrawCollateralTo(tokenId, longOwner, longPayout);
