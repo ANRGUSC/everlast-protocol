@@ -1,10 +1,10 @@
 <p align="center">
-  <h1 align="center">🔮 EverLast Protocol ♾️</h1>
+  <h1 align="center">EverLast Protocol</h1>
   <p align="center">
     <strong>Everlasting Options That Never Expire</strong>
   </p>
   <p align="center">
-    Trade call and put options on Base with no expiration dates. Positions are NFTs with continuous funding.
+    Trade call and put options on Base with no expiration dates. Powered by a Constant-Log-Utility Market Maker (CLUM) providing pooled liquidity with bounded-loss guarantees.
   </p>
 </p>
 
@@ -28,9 +28,10 @@
 ## Highlights
 
 - **No Expiration** - Options stay open indefinitely, no rolling required
-- **NFT Positions** - Trade your options on any NFT marketplace
-- **Continuous Funding** - Time value flows from long to short automatically
-- **Fully Collateralized** - 100% backed, no counterparty risk
+- **Pooled AMM Liquidity** - CLUM engine provides continuous two-sided liquidity with bounded loss for LPs
+- **Market-Driven Funding** - Rates derived from the CLUM's implied probability distribution, not a parametric model
+- **ERC-1155 Positions** - Semi-fungible position tokens, gas-efficient and tradeable
+- **Cross-Strike Efficiency** - Arbitrage guard enforces convexity, monotonicity, and put-call parity across strikes
 - **Exercise Anytime** - American-style, exercise when in-the-money
 - **Built on Base** - Fast, cheap transactions on Ethereum L2
 
@@ -38,7 +39,7 @@
 
 ## Try It
 
-👉 **[Launch App](https://everlast-protocol.vercel.app/)**
+**[Launch App](https://everlast-protocol.vercel.app/)**
 
 Connect your wallet to Base Sepolia and get test tokens:
 - [Base Sepolia Faucet](https://www.alchemy.com/faucets/base-sepolia) - Get test ETH
@@ -48,55 +49,76 @@ Connect your wallet to Base Sepolia and get test tokens:
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  SHORT SELLER                         LONG HOLDER           │
-│  ┌─────────────┐                     ┌─────────────┐        │
-│  │ Deposits    │ ──── NFT ────────▶  │ Receives    │        │
-│  │ Collateral  │                     │ Option NFT  │        │
-│  └─────────────┘                     └─────────────┘        │
-│        ▲                                    │               │
-│        │         Continuous Funding         │               │
-│        └────────────────────────────────────┘               │
-│                   (rent payment)                            │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Trader
+        A[Buys Option]
+    end
+    subgraph LP [Liquidity Provider]
+        B[Deposits USDC into ERC-4626 Vault]
+    end
+
+    A -- "premium (USDC)" --> B
+    B -- "ERC-1155 position token" --> A
+    A -. "continuous funding (mark - payoff)" .-> B
 ```
 
 | Action | What Happens |
 |--------|--------------|
-| **Open** | Short deposits collateral, Long receives NFT |
-| **Fund** | Long pays "rent" to keep position alive |
-| **Exercise** | Long exercises ITM option, receives payout |
-| **Liquidate** | Anyone can liquidate undercollateralized positions |
+| **Buy** | Trader pays premium (computed by CLUM), receives ERC-1155 position token |
+| **Sell** | Trader sells position back to CLUM at current market price |
+| **Fund** | Trader deposits USDC to keep position alive (funding accrues continuously) |
+| **Exercise** | Trader exercises ITM option, receives intrinsic value payout from LP pool |
+| **Liquidate** | Anyone can liquidate positions with depleted funding balance |
 
 ---
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    EM[EvOptionManager\nCore Controller]
+
+    EM --> CLUM[CLUMEngine\nCost Function + State]
+    EM --> LP[LPPool\nERC-4626 Vault]
+    EM --> PT[PositionTokens\nERC-1155]
+    EM --> FD[FundingDeriver\nImplied-Dist Rates]
+    EM --> AG[ArbitrageGuard\nNo-Arb Enforcement]
+
+    CLUM --> BR[BucketRegistry\nDiscretized Price Space]
+    FD --> BR
+
+    BR --> CL[Chainlink ETH/USD]
 ```
-                    ┌──────────────────────┐
-                    │    OptionManager     │
-                    │   (Core Controller)  │
-                    └──────────┬───────────┘
-                               │
-       ┌───────────┬───────────┼───────────┬───────────┐
-       │           │           │           │           │
-       ▼           ▼           ▼           ▼           ▼
-┌───────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-│ OptionNFT │ │  USDC   │ │  WETH   │ │ Funding │ │  Risk   │
-│ (ERC-721) │ │  Vault  │ │  Vault  │ │ Oracle  │ │ Params  │
-└───────────┘ └─────────┘ └─────────┘ └────┬────┘ └─────────┘
-                                           │
-                                           ▼
-                                    ┌───────────┐
-                                    │ Chainlink │
-                                    │ ETH/USD   │
-                                    └───────────┘
-```
+
+### Core Contracts (`contracts/clum/`)
+
+| Contract | Purpose |
+|----------|---------|
+| **CLUMEngine** | Core AMM: maintains quantity vector, solves `sum(pi_i * ln(C - q_i)) = U` via bisection |
+| **BucketRegistry** | Discretized price space (N regular + 2 tail buckets) with oracle-driven recentering |
+| **LPPool** | ERC-4626 vault backing the CLUM with bounded-loss subsidy accounting |
+| **PositionTokens** | ERC-1155 semi-fungible tokens encoding option type and strike |
+| **FundingDeriver** | Derives funding rates from CLUM implied distribution with premium factor |
+| **ArbitrageGuard** | On-chain convexity/monotonicity checks + Merkle-verified off-chain LP bounds |
+| **EvOptionManager** | Trade lifecycle: buy, sell, exercise, funding accrual, liquidation |
+| **CLUMMath** | Gas-optimized fixed-point ln/exp (Solmate-derived) |
+
+### Off-chain (`offchain/`)
+
+| Module | Purpose |
+|--------|---------|
+| **clum-verifier.ts** | Computes `C(q)` off-chain with higher precision, generates verification payloads for gas-optimized large trades |
+
+### Legacy Contracts (`contracts/`)
+
+The original peer-to-peer contracts (`OptionManager`, `PerpetualOptionNFT`, `FundingOracle`, `CollateralVault`, `RiskParams`) remain in the repo as reference. The CLUM system replaces this model with pooled AMM liquidity.
 
 ---
 
 ## Deployed Contracts (Base Sepolia)
+
+> Legacy peer-to-peer deployment. CLUM contracts are not yet deployed to testnet.
 
 | Contract | Address |
 |----------|---------|
@@ -119,6 +141,9 @@ cd everlast-protocol && npm install
 # Run tests
 npx hardhat test
 
+# Run CLUM tests only
+npx hardhat test test/CLUM.test.js
+
 # Run frontend locally
 cd frontend && npm install && npm run dev
 ```
@@ -126,13 +151,14 @@ cd frontend && npm install && npm run dev
 ### Tech Stack
 
 - **Contracts:** Solidity 0.8.20, Hardhat, OpenZeppelin, Chainlink
+- **Off-chain:** TypeScript, ethers.js
 - **Frontend:** Next.js 14, wagmi, viem, RainbowKit, Tailwind CSS
 
 ---
 
 ## Security
 
-> ⚠️ **Warning:** This protocol is deployed on testnet only. It has not been audited. Do not use with real funds.
+> **Warning:** This protocol is deployed on testnet only. It has not been audited. Do not use with real funds.
 
 ---
 
