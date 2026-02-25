@@ -3,14 +3,15 @@ import { CONTRACTS } from '@/config/contracts';
 
 const tradingLinks = [
   { href: '/', label: 'Dashboard' },
-  { href: '/open', label: 'Open Position' },
+  { href: '/buy', label: 'Buy Option' },
   { href: '/positions', label: 'My Positions' },
+  { href: '/pool', label: 'LP Pool' },
   { href: '/liquidate', label: 'Liquidate' },
 ];
 
 const developerLinks = [
   { href: 'https://github.com/ANRGUSC/everlast-protocol', label: 'GitHub', external: true },
-  { href: `https://sepolia.basescan.org/address/${CONTRACTS.optionManager}`, label: 'Contracts (BaseScan)', external: true },
+  { href: `https://sepolia.basescan.org/address/${CONTRACTS.evOptionManager}`, label: 'Contracts (BaseScan)', external: true },
 ];
 
 const communityLinks = [
@@ -30,7 +31,7 @@ export function Footer() {
               <span className="text-xl font-bold text-primary-500">Last</span>
             </Link>
             <p className="text-sm text-gray-400 mb-4">
-              Everlasting options that never expire. Trade perpetual calls and puts on Base.
+              Everlasting options powered by CLUM. Trade perpetual calls and puts on Base with automated market making.
             </p>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-500/10 text-primary-400 border border-primary-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-primary-400" />
@@ -112,7 +113,7 @@ export function Footer() {
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
-              Chainlink Oracles
+              CLUM AMM
             </span>
           </div>
         </div>

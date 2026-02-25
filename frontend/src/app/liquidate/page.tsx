@@ -5,86 +5,79 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { formatUnits } from 'viem';
 import {
   CONTRACTS,
-  OPTION_MANAGER_ABI,
-  OPTION_NFT_ABI,
-  FUNDING_ORACLE_ABI,
+  EV_OPTION_MANAGER_ABI,
+  FUNDING_DERIVER_ABI,
   OptionType,
-  PositionStatus
+  USDC_DECIMALS,
 } from '@/config/contracts';
-
-interface PositionData {
-  optionType: number;
-  underlying: string;
-  strike: bigint;
-  size: bigint;
-  shortOwner: string;
-  collateralAmount: bigint;
-  lastFundingTime: bigint;
-  longFundingBalance: bigint;
-  status: number;
-}
+import type { Position } from '@/config/contracts';
 
 function LiquidatablePosition({ tokenId }: { tokenId: string }) {
   const tokenIdBigInt = BigInt(tokenId);
 
+  const hasContracts = CONTRACTS.evOptionManager !== '0x0000000000000000000000000000000000000000';
+
   // Get position data
   const { data: position } = useReadContract({
-    address: CONTRACTS.optionManager,
-    abi: OPTION_MANAGER_ABI,
+    address: CONTRACTS.evOptionManager,
+    abi: EV_OPTION_MANAGER_ABI,
     functionName: 'getPosition',
     args: [tokenIdBigInt],
-  }) as { data: PositionData | undefined };
+    query: { enabled: hasContracts },
+  }) as { data: Position | undefined };
 
   // Check if liquidatable
   const { data: isLiquidatable } = useReadContract({
-    address: CONTRACTS.optionManager,
-    abi: OPTION_MANAGER_ABI,
+    address: CONTRACTS.evOptionManager,
+    abi: EV_OPTION_MANAGER_ABI,
     functionName: 'isLiquidatable',
     args: [tokenIdBigInt],
+    query: { enabled: hasContracts },
   });
 
-  // Get intrinsic value
+  // Get intrinsic value (no underlying param)
   const { data: intrinsicValue } = useReadContract({
-    address: CONTRACTS.fundingOracle,
-    abi: FUNDING_ORACLE_ABI,
+    address: CONTRACTS.fundingDeriver,
+    abi: FUNDING_DERIVER_ABI,
     functionName: 'getIntrinsicValue',
-    args: position ? [position.optionType, position.underlying as `0x${string}`, position.strike] : undefined,
-    query: { enabled: !!position },
+    args: position ? [position.optionType, position.strike] : undefined,
+    query: { enabled: hasContracts && !!position },
   });
 
-  // Get collateral ratio
-  const { data: collateralRatio } = useReadContract({
-    address: CONTRACTS.optionManager,
-    abi: OPTION_MANAGER_ABI,
-    functionName: 'getCollateralRatio',
+  // Get pending funding
+  const { data: pendingFunding } = useReadContract({
+    address: CONTRACTS.evOptionManager,
+    abi: EV_OPTION_MANAGER_ABI,
+    functionName: 'getPendingFunding',
     args: [tokenIdBigInt],
+    query: { enabled: hasContracts },
   });
 
-  // Liquidate function
+  // Liquidate
   const { writeContract: liquidate, data: liquidateHash } = useWriteContract();
   const { isLoading: isLiquidating, isSuccess: isLiquidated } = useWaitForTransactionReceipt({
     hash: liquidateHash,
   });
 
-  if (!position || position.status !== PositionStatus.ACTIVE) {
+  if (!position || !position.isActive) {
     return null;
   }
 
   const isCall = position.optionType === OptionType.CALL;
-  const strikeFormatted = formatUnits(position.strike, 6);
+  const strikeFormatted = Number(formatUnits(position.strike, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 });
   const sizeFormatted = formatUnits(position.size, 18);
-  const collateral = isCall
-    ? formatUnits(position.collateralAmount, 18) + ' WETH'
-    : formatUnits(position.collateralAmount, 6) + ' USDC';
-  const intrinsic = intrinsicValue ? formatUnits(intrinsicValue, 6) : '0';
-  const ratioPercent = collateralRatio
-    ? (Number(collateralRatio) / 1e16).toFixed(1)
-    : '---';
+  const fundingBalance = formatUnits(position.fundingBalance, USDC_DECIMALS);
+  const intrinsic = intrinsicValue ? Number(formatUnits(intrinsicValue, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0';
+  const pending = pendingFunding ? formatUnits(pendingFunding, USDC_DECIMALS) : '0';
+
+  // Effective balance = fundingBalance - pendingFunding
+  const effectiveBalance = position.fundingBalance - (pendingFunding || 0n);
+  const effectiveBalanceFormatted = Number(formatUnits(effectiveBalance > 0n ? effectiveBalance : 0n, USDC_DECIMALS)).toLocaleString();
 
   const handleLiquidate = () => {
     liquidate({
-      address: CONTRACTS.optionManager,
-      abi: OPTION_MANAGER_ABI,
+      address: CONTRACTS.evOptionManager,
+      abi: EV_OPTION_MANAGER_ABI,
       functionName: 'liquidate',
       args: [tokenIdBigInt],
     });
@@ -118,29 +111,31 @@ function LiquidatablePosition({ tokenId }: { tokenId: string }) {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-gray-400">Strike</span>
-            <p className="text-white font-medium">${Number(strikeFormatted).toLocaleString()}</p>
+            <p className="text-white font-medium">${strikeFormatted}</p>
           </div>
           <div>
             <span className="text-gray-400">Size</span>
             <p className="text-white font-medium">{sizeFormatted} ETH</p>
           </div>
           <div>
-            <span className="text-gray-400">Collateral</span>
-            <p className="text-white font-medium">{collateral}</p>
+            <span className="text-gray-400">Funding Balance</span>
+            <p className={`font-medium ${Number(fundingBalance) < 1 ? 'text-red-400' : 'text-white'}`}>
+              ${Number(fundingBalance).toLocaleString()} USDC
+            </p>
           </div>
           <div>
-            <span className="text-gray-400">Collateral Ratio</span>
-            <p className={`font-medium ${Number(ratioPercent) < 120 ? 'text-red-400' : 'text-green-400'}`}>
-              {ratioPercent}%
+            <span className="text-gray-400">Effective Balance</span>
+            <p className={`font-medium ${effectiveBalance <= 0n ? 'text-red-400' : 'text-yellow-400'}`}>
+              ${effectiveBalanceFormatted} USDC
             </p>
           </div>
           <div>
             <span className="text-gray-400">Intrinsic Value</span>
-            <p className="text-white font-medium">${Number(intrinsic).toLocaleString()}</p>
+            <p className="text-white font-medium">${intrinsic}</p>
           </div>
           <div>
-            <span className="text-gray-400">Short Owner</span>
-            <p className="text-gray-300 font-mono text-xs truncate">{position.shortOwner}</p>
+            <span className="text-gray-400">Owner</span>
+            <p className="text-gray-300 font-mono text-xs truncate">{position.owner}</p>
           </div>
         </div>
 
@@ -156,7 +151,7 @@ function LiquidatablePosition({ tokenId }: { tokenId: string }) {
 
         {!isLiquidatable && (
           <div className="bg-gray-700 rounded-lg p-3 text-center text-sm text-gray-400">
-            Position is healthy (above maintenance ratio)
+            Position is healthy (funding balance sufficient)
           </div>
         )}
       </div>
@@ -169,17 +164,21 @@ export default function Liquidate() {
   const [searchTokenId, setSearchTokenId] = useState('');
   const [searchedPositions, setSearchedPositions] = useState<string[]>([]);
 
-  // Get total supply to show recent positions
-  const { data: totalSupply } = useReadContract({
-    address: CONTRACTS.optionNFT,
-    abi: OPTION_NFT_ABI,
-    functionName: 'totalSupply',
+  const hasContracts = CONTRACTS.evOptionManager !== '0x0000000000000000000000000000000000000000';
+
+  // Get next position ID to enumerate recent positions
+  const { data: nextPositionId } = useReadContract({
+    address: CONTRACTS.evOptionManager,
+    abi: EV_OPTION_MANAGER_ABI,
+    functionName: 'nextPositionId',
+    query: { enabled: hasContracts },
   });
 
-  // Generate recent token IDs to check
-  const recentTokenIds = totalSupply
-    ? Array.from({ length: Math.min(Number(totalSupply), 10) }, (_, i) =>
-        (Number(totalSupply) - i).toString()
+  // Generate recent position IDs to check
+  const recentTokenIds = nextPositionId && nextPositionId > 1n
+    ? Array.from(
+        { length: Math.min(Number(nextPositionId) - 1, 10) },
+        (_, i) => (Number(nextPositionId) - 1 - i).toString()
       )
     : [];
 
@@ -204,7 +203,7 @@ export default function Liquidate() {
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Liquidate Positions</h1>
         <p className="text-gray-400">
-          Find and liquidate undercollateralized positions to earn a liquidation bonus.
+          Find and liquidate positions with depleted funding balances.
         </p>
       </div>
 
@@ -216,7 +215,7 @@ export default function Liquidate() {
             type="number"
             value={searchTokenId}
             onChange={(e) => setSearchTokenId(e.target.value)}
-            placeholder="Enter Token ID"
+            placeholder="Enter Position ID"
             className="flex-1 bg-gray-700 border border-gray-600 rounded-lg py-2 px-4 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
           />
           <button
@@ -261,16 +260,16 @@ export default function Liquidate() {
         <h3 className="text-lg font-semibold text-white mb-3">How Liquidation Works</h3>
         <ul className="space-y-2 text-sm text-gray-400">
           <li>
-            <span className="text-white">1.</span> Positions become liquidatable when their collateral ratio falls below the maintenance threshold (120%).
+            <span className="text-white">1.</span> Positions become liquidatable when their funding balance falls below the minimum required amount.
           </li>
           <li>
-            <span className="text-white">2.</span> Anyone can liquidate an undercollateralized position.
+            <span className="text-white">2.</span> A grace period applies after the funding balance is depleted before liquidation is enabled.
           </li>
           <li>
-            <span className="text-white">3.</span> The liquidator pays the long's intrinsic value and receives the short's collateral.
+            <span className="text-white">3.</span> Anyone can liquidate an eligible position. The position is closed and remaining funding is distributed.
           </li>
           <li>
-            <span className="text-white">4.</span> Liquidators earn a 5% bonus on the collateral for their service.
+            <span className="text-white">4.</span> Position holders can prevent liquidation by depositing more funding (USDC) at any time.
           </li>
         </ul>
       </div>

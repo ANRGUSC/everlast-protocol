@@ -4,7 +4,7 @@ import { useReadContract } from 'wagmi';
 import { formatUnits } from 'viem';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { CONTRACTS, FUNDING_ORACLE_ABI, OPTION_NFT_ABI } from '@/config/contracts';
+import { CONTRACTS, BUCKET_REGISTRY_ABI, EV_OPTION_MANAGER_ABI, LP_POOL_ABI, USDC_DECIMALS } from '@/config/contracts';
 
 // ─── Intersection Observer hook ───────────────────────────────────────────────
 function useInView(threshold = 0.15) {
@@ -51,27 +51,27 @@ function AnimatedNumber({ value, prefix = '', suffix = '' }: { value: number; pr
 const faqs = [
   {
     q: 'What are everlasting options?',
-    a: 'Everlasting options are options contracts that never expire. Unlike traditional options with fixed expiration dates, these positions remain open indefinitely. The holder pays a continuous funding rate (rent) to keep the position active, replacing the time-value decay of conventional options.',
+    a: 'Everlasting options are options contracts that never expire. Unlike traditional options with fixed expiration dates, these positions remain open indefinitely. The holder pays a continuous funding rate to keep the position active, replacing the time-value decay of conventional options.',
+  },
+  {
+    q: 'How does the CLUM AMM work?',
+    a: 'The CLUM (Concentrated Liquidity Utility Maximizer) is an automated market maker that prices options using a discretized probability distribution. When you buy or sell an option, the CLUM determines the fair premium based on risk-neutral pricing. There is no counterparty matching — the LP pool acts as the other side of every trade.',
   },
   {
     q: 'How does the funding mechanism work?',
-    a: 'Long holders pay a continuous funding rate to short sellers. This funding is calculated based on the difference between the mark price and the intrinsic value of the option. The rate is streamed per-second, and long holders must maintain a sufficient funding balance to keep their positions open.',
-  },
-  {
-    q: 'What collateral is required?',
-    a: 'For call options, the short seller deposits WETH as collateral. For put options, USDC is used as collateral. Positions must be fully collateralized at all times, with a minimum collateral ratio enforced by the protocol.',
+    a: 'Option holders pay a continuous funding rate that streams per-second from their funding balance to the LP pool. This funding represents the time value of the option (mark price minus intrinsic value). You must maintain a sufficient funding balance to keep your position active.',
   },
   {
     q: 'How do I exercise an option?',
-    a: 'You can exercise your option at any time when it is in-the-money (American-style). Simply navigate to My Positions, select the position, and click Exercise. The settlement is calculated based on the current oracle price and happens instantly on-chain.',
+    a: 'You can exercise your option at any time when it is in-the-money. Navigate to My Positions, select the position, and click Exercise. Settlement is calculated based on the current spot price and happens instantly on-chain. No approval is needed — just call exercise.',
   },
   {
     q: 'What happens if my funding runs out?',
-    a: 'If a long position\'s funding balance is depleted, the position becomes liquidatable. Any user can then liquidate the position, which closes it and returns the collateral to the short seller. You can top up your funding balance at any time to prevent liquidation.',
+    a: 'If your funding balance drops below the minimum required amount and a grace period expires, your position becomes liquidatable. Anyone can then liquidate it. You can top up your funding balance at any time to prevent liquidation.',
   },
   {
-    q: 'What chains are supported?',
-    a: 'EverLast is currently deployed on Base Sepolia (testnet). The protocol uses Chainlink price oracles for accurate, manipulation-resistant pricing. A mainnet deployment on Base is planned for the future.',
+    q: 'How does providing liquidity work?',
+    a: 'LPs deposit USDC into the LP Pool (an ERC-4626 vault) and receive LP shares. The pool earns premiums when traders buy options and receives continuous funding payments. It loses money when traders exercise in-the-money options. Net returns = premiums + funding - losses.',
   },
 ];
 
@@ -114,20 +114,20 @@ const features = [
     ),
   },
   {
-    title: 'NFT Positions',
-    desc: 'Every long position is an ERC-721 NFT. Trade, transfer, or compose your options on any marketplace.',
+    title: 'CLUM AMM',
+    desc: 'Buy and sell options instantly from the automated market maker. No counterparty matching needed.',
     icon: (
       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
     ),
   },
   {
-    title: 'Fully Collateralized',
-    desc: 'No counterparty risk. All positions are 100% backed by on-chain collateral at all times.',
+    title: 'LP Pool Yields',
+    desc: 'Provide USDC liquidity and earn premiums + funding from option traders via the ERC-4626 vault.',
     icon: (
       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
   },
@@ -141,11 +141,11 @@ const features = [
     ),
   },
   {
-    title: 'Continuous Funding',
-    desc: 'Automated per-second rent from longs to shorts replaces time-value decay elegantly.',
+    title: 'USDC Settled',
+    desc: 'All settlements and funding in USDC. Clean, simple accounting with no asset delivery complexity.',
     icon: (
       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
       </svg>
     ),
   },
@@ -162,27 +162,42 @@ const features = [
 
 // ─── Page component ───────────────────────────────────────────────────────────
 export default function Dashboard() {
-  // Chain data
+  const hasContracts = CONTRACTS.evOptionManager !== '0x0000000000000000000000000000000000000000';
+
+  // Spot price from BucketRegistry (WAD)
   const { data: ethPrice } = useReadContract({
-    address: CONTRACTS.fundingOracle,
-    abi: FUNDING_ORACLE_ABI,
+    address: CONTRACTS.bucketRegistry,
+    abi: BUCKET_REGISTRY_ABI,
     functionName: 'getSpotPrice',
-    args: [CONTRACTS.weth],
+    query: { enabled: hasContracts },
   });
 
-  const { data: totalSupply } = useReadContract({
-    address: CONTRACTS.optionNFT,
-    abi: OPTION_NFT_ABI,
-    functionName: 'totalSupply',
+  // Total positions from nextPositionId
+  const { data: nextPositionId } = useReadContract({
+    address: CONTRACTS.evOptionManager,
+    abi: EV_OPTION_MANAGER_ABI,
+    functionName: 'nextPositionId',
+    query: { enabled: hasContracts },
+  });
+
+  // LP Pool TVL
+  const { data: totalAssets } = useReadContract({
+    address: CONTRACTS.lpPool,
+    abi: LP_POOL_ABI,
+    functionName: 'totalAssets',
+    query: { enabled: hasContracts },
   });
 
   const formatPrice = (price: bigint | undefined) => {
     if (!price) return '---';
-    return `$${Number(formatUnits(price, 8)).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    return `$${Number(formatUnits(price, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   };
 
-  const ethPriceNum = ethPrice ? Math.round(Number(formatUnits(ethPrice, 8))) : 0;
-  const totalPositions = totalSupply ? Number(totalSupply) : 0;
+  const ethPriceNum = ethPrice ? Math.round(Number(formatUnits(ethPrice, 18))) : 0;
+  const totalPositions = nextPositionId ? Number(nextPositionId) - 1 : 0;
+  const tvl = totalAssets
+    ? Number(formatUnits(totalAssets, USDC_DECIMALS)).toLocaleString(undefined, { maximumFractionDigits: 0 })
+    : '---';
 
   // Section visibility
   const stats = useInView();
@@ -209,21 +224,21 @@ export default function Dashboard() {
             </span>
           </h1>
           <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Trade everlasting calls and puts on Base. Your positions live as NFTs
-            with continuous funding — hold forever or exercise anytime.
+            Trade everlasting calls and puts on Base. Buy options from the CLUM AMM,
+            provide liquidity to earn yields, or exercise anytime.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/open"
+              href="/buy"
               className="px-8 py-3.5 bg-primary-500 hover:bg-primary-400 text-white font-semibold rounded-xl transition-colors text-lg"
             >
-              Start Trading
+              Buy Option
             </Link>
             <Link
-              href="/positions"
+              href="/pool"
               className="px-8 py-3.5 border border-gray-600 hover:border-gray-500 text-gray-300 hover:text-white font-semibold rounded-xl transition-colors text-lg"
             >
-              View Positions
+              Provide Liquidity
             </Link>
           </div>
         </div>
@@ -248,9 +263,9 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="text-center">
-            <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Option Types</p>
+            <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">LP Pool TVL</p>
             <p className="text-2xl md:text-3xl font-bold text-white">
-              <span className="text-call">Calls</span> & <span className="text-put">Puts</span>
+              ${tvl}
             </p>
           </div>
           <div className="text-center">
@@ -270,7 +285,7 @@ export default function Dashboard() {
             A New Primitive for Options
           </h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Everlasting options combine the simplicity of perpetual swaps with the payoff structure of traditional options.
+            Everlasting options powered by the CLUM automated market maker and a pooled LP model.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -298,7 +313,7 @@ export default function Dashboard() {
         >
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">How It Works</h2>
           <p className="text-gray-400 max-w-xl mx-auto">
-            Three simple steps from opening to settlement.
+            Three simple steps from buying to settlement.
           </p>
         </div>
 
@@ -312,10 +327,10 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-call/20 rounded-full flex items-center justify-center text-call text-xl font-bold mx-auto mb-6 ring-4 ring-gray-900 relative z-10">
                 1
               </div>
-              <h3 className="text-lg font-semibold text-white mb-3">Open Position</h3>
+              <h3 className="text-lg font-semibold text-white mb-3">Buy Option</h3>
               <p className="text-sm text-gray-400 leading-relaxed max-w-xs mx-auto">
-                Short sellers deposit collateral (WETH for calls, USDC for puts) and specify
-                the option parameters. An NFT is minted to the long buyer.
+                Choose your option type, strike, and size. The CLUM AMM quotes you a premium.
+                Pay USDC for the premium plus initial funding.
               </p>
             </div>
 
@@ -326,8 +341,8 @@ export default function Dashboard() {
               </div>
               <h3 className="text-lg font-semibold text-white mb-3">Continuous Funding</h3>
               <p className="text-sm text-gray-400 leading-relaxed max-w-xs mx-auto">
-                Long holders pay funding (rent) continuously to shorts. This represents
-                the time value of the option and keeps the position open.
+                Your funding balance is consumed over time (mark - intrinsic value per second).
+                Top up funding anytime to keep the position active.
               </p>
             </div>
 
@@ -336,10 +351,10 @@ export default function Dashboard() {
               <div className="w-12 h-12 bg-put/20 rounded-full flex items-center justify-center text-put text-xl font-bold mx-auto mb-6 ring-4 ring-gray-900 relative z-10">
                 3
               </div>
-              <h3 className="text-lg font-semibold text-white mb-3">Exercise or Close</h3>
+              <h3 className="text-lg font-semibold text-white mb-3">Exercise or Sell</h3>
               <p className="text-sm text-gray-400 leading-relaxed max-w-xs mx-auto">
-                Long holders can exercise in-the-money options anytime. If funding runs out,
-                the position closes. Undercollateralized positions can be liquidated.
+                Exercise in-the-money options for USDC payout, or sell your position back
+                to the CLUM AMM at any time. If funding runs out, the position can be liquidated.
               </p>
             </div>
           </div>
@@ -364,8 +379,8 @@ export default function Dashboard() {
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">Secure by Design</h2>
               <ul className="space-y-3 mb-6">
                 {[
-                  'Fully collateralized — every position is 100% backed on-chain',
-                  'Chainlink oracle prices — manipulation-resistant price feeds',
+                  'Pooled LP model — no individual counterparty risk',
+                  'CLUM pricing — risk-neutral automated option pricing',
                   'Open source — all contracts are publicly verifiable',
                   'Verified on BaseScan — transparent and auditable',
                 ].map((item) => (
@@ -379,7 +394,7 @@ export default function Dashboard() {
               </ul>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href={`https://sepolia.basescan.org/address/${CONTRACTS.optionManager}`}
+                  href={`https://sepolia.basescan.org/address/${CONTRACTS.evOptionManager}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-primary-400 bg-primary-500/10 hover:bg-primary-500/20 transition-colors"
@@ -441,7 +456,7 @@ export default function Dashboard() {
               <svg className="w-4 h-4 text-call" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              Exercise anytime
+              Instant AMM pricing
             </li>
             <li className="flex items-center gap-2">
               <svg className="w-4 h-4 text-call" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -450,12 +465,20 @@ export default function Dashboard() {
               Fully on-chain
             </li>
           </ul>
-          <Link
-            href="/open"
-            className="inline-flex px-10 py-4 bg-primary-500 hover:bg-primary-400 text-white font-semibold rounded-xl transition-colors text-lg"
-          >
-            Open a Position
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/buy"
+              className="inline-flex px-10 py-4 bg-primary-500 hover:bg-primary-400 text-white font-semibold rounded-xl transition-colors text-lg"
+            >
+              Buy an Option
+            </Link>
+            <Link
+              href="/pool"
+              className="inline-flex px-10 py-4 border border-gray-600 hover:border-gray-500 text-gray-300 hover:text-white font-semibold rounded-xl transition-colors text-lg"
+            >
+              Provide Liquidity
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -464,7 +487,7 @@ export default function Dashboard() {
         <div className="text-center text-gray-500 text-sm">
           <p>Currently deployed on Base Sepolia Testnet</p>
           <p className="mt-1">
-            OptionManager: <code className="text-gray-400 text-xs">{CONTRACTS.optionManager}</code>
+            EvOptionManager: <code className="text-gray-400 text-xs">{CONTRACTS.evOptionManager}</code>
           </p>
         </div>
       </section>

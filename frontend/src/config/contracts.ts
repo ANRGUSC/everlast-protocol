@@ -1,267 +1,428 @@
 import { Address } from 'viem';
 
-// Base Sepolia deployed contract addresses
+// ─── Constants ──────────────────────────────────────────────────────────────
+export const WAD = BigInt(1e18);
+export const USDC_DECIMALS = 6;
+export const USDC_TO_WAD = BigInt(1e12); // multiply USDC (1e6) by this to get WAD (1e18)
+
+// ─── Contract Addresses (placeholders until testnet deployment) ─────────────
 export const CONTRACTS = {
-  riskParams: '0xe24ecE1aD46657D23fcab41e0585FBA5c4E8E61C' as Address,
-  usdcVault: '0xc6703DEE49Bf14119e63c8fB3Fa0b60212442c7e' as Address,
-  wethVault: '0xf5c6f1843Bf910A00B615c038565B0c1dEaA90cA' as Address,
-  optionNFT: '0xC7831161CB20d1517aD7ad642a6F41727b6AFF55' as Address,
-  fundingOracle: '0xC46D4e5Ca887a47118Ca5C777972251b39902D77' as Address,
-  optionManager: '0x92768885E13B791683Cee58532125c35E943840E' as Address,
+  evOptionManager: '0x0000000000000000000000000000000000000000' as Address,
+  clumEngine:      '0x0000000000000000000000000000000000000000' as Address,
+  bucketRegistry:  '0x0000000000000000000000000000000000000000' as Address,
+  lpPool:          '0x0000000000000000000000000000000000000000' as Address,
+  fundingDeriver:  '0x0000000000000000000000000000000000000000' as Address,
+  positionTokens:  '0x0000000000000000000000000000000000000000' as Address,
   usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address,
   weth: '0x4200000000000000000000000000000000000006' as Address,
 };
 
-// Option types
+// ─── Enums & Types ──────────────────────────────────────────────────────────
 export enum OptionType {
   CALL = 0,
   PUT = 1,
 }
 
-// Position status
-export enum PositionStatus {
-  ACTIVE = 0,
-  EXERCISED = 1,
-  LIQUIDATED = 2,
-  CLOSED = 3,
+export interface Position {
+  optionType: number;
+  strike: bigint;       // WAD (1e18)
+  size: bigint;         // WAD (1e18)
+  owner: string;
+  fundingBalance: bigint; // USDC (1e6)
+  lastFundingTime: bigint;
+  isActive: boolean;
 }
 
-// ABIs
-export const OPTION_MANAGER_ABI = [
+// ─── ABIs ───────────────────────────────────────────────────────────────────
+
+export const EV_OPTION_MANAGER_ABI = [
   {
-    "inputs": [
-      { "internalType": "enum IFundingOracle.OptionType", "name": "optionType", "type": "uint8" },
-      { "internalType": "address", "name": "underlying", "type": "address" },
-      { "internalType": "uint256", "name": "strike", "type": "uint256" },
-      { "internalType": "uint256", "name": "size", "type": "uint256" },
-      { "internalType": "address", "name": "longOwner", "type": "address" },
-      { "internalType": "uint256", "name": "initialFunding", "type": "uint256" }
+    inputs: [
+      { internalType: "uint8", name: "optionType", type: "uint8" },
+      { internalType: "uint256", name: "strike", type: "uint256" },
+      { internalType: "uint256", name: "size", type: "uint256" },
+      { internalType: "uint256", name: "initialFunding", type: "uint256" },
     ],
-    "name": "openPosition",
-    "outputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "buyOption",
+    outputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "name": "exercise",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "name": "liquidate",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "name": "accrueFunding",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
-      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    inputs: [
+      { internalType: "uint256", name: "tokenId", type: "uint256" },
+      { internalType: "uint256", name: "size", type: "uint256" },
     ],
-    "name": "depositFunding",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "sellOption",
+    outputs: [{ internalType: "uint256", name: "revenue", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [
-      { "internalType": "uint256", "name": "tokenId", "type": "uint256" },
-      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "exercise",
+    outputs: [{ internalType: "uint256", name: "payout", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "tokenId", type: "uint256" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
     ],
-    "name": "releaseCollateral",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "depositFunding",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "name": "getPosition",
-    "outputs": [
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "accrueFunding",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "liquidate",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "getPosition",
+    outputs: [
       {
-        "components": [
-          { "internalType": "enum IFundingOracle.OptionType", "name": "optionType", "type": "uint8" },
-          { "internalType": "address", "name": "underlying", "type": "address" },
-          { "internalType": "uint256", "name": "strike", "type": "uint256" },
-          { "internalType": "uint256", "name": "size", "type": "uint256" },
-          { "internalType": "address", "name": "shortOwner", "type": "address" },
-          { "internalType": "uint256", "name": "collateralAmount", "type": "uint256" },
-          { "internalType": "uint256", "name": "lastFundingTime", "type": "uint256" },
-          { "internalType": "uint256", "name": "longFundingBalance", "type": "uint256" },
-          { "internalType": "enum IOptionManager.PositionStatus", "name": "status", "type": "uint8" }
+        components: [
+          { internalType: "uint8", name: "optionType", type: "uint8" },
+          { internalType: "uint256", name: "strike", type: "uint256" },
+          { internalType: "uint256", name: "size", type: "uint256" },
+          { internalType: "address", name: "owner", type: "address" },
+          { internalType: "uint256", name: "fundingBalance", type: "uint256" },
+          { internalType: "uint256", name: "lastFundingTime", type: "uint256" },
+          { internalType: "bool", name: "isActive", type: "bool" },
         ],
-        "internalType": "struct IOptionManager.Position",
-        "name": "",
-        "type": "tuple"
-      }
+        internalType: "struct IEvOptionManager.Position",
+        name: "",
+        type: "tuple",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function"
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "name": "isLiquidatable",
-    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "isLiquidatable",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "name": "getCollateralRatio",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [{ internalType: "address", name: "owner", type: "address" }],
+    name: "getOwnerPositions",
+    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }],
-    "name": "getShortPositions",
-    "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [{ internalType: "uint256", name: "positionId", type: "uint256" }],
+    name: "getPendingFunding",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "name": "getPendingFunding",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [],
+    name: "nextPositionId",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
   },
-  {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "uint256", "name": "tokenId", "type": "uint256" },
-      { "indexed": true, "internalType": "address", "name": "longOwner", "type": "address" },
-      { "indexed": true, "internalType": "address", "name": "shortOwner", "type": "address" },
-      { "indexed": false, "internalType": "enum IFundingOracle.OptionType", "name": "optionType", "type": "uint8" },
-      { "indexed": false, "internalType": "address", "name": "underlying", "type": "address" },
-      { "indexed": false, "internalType": "uint256", "name": "strike", "type": "uint256" },
-      { "indexed": false, "internalType": "uint256", "name": "size", "type": "uint256" },
-      { "indexed": false, "internalType": "uint256", "name": "collateral", "type": "uint256" }
-    ],
-    "name": "PositionOpened",
-    "type": "event"
-  }
 ] as const;
 
-export const OPTION_NFT_ABI = [
+export const CLUM_ENGINE_ABI = [
   {
-    "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }],
-    "name": "balanceOf",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [
+      { internalType: "uint8", name: "optionType", type: "uint8" },
+      { internalType: "uint256", name: "strikeWad", type: "uint256" },
+      { internalType: "uint256", name: "sizeWad", type: "uint256" },
+    ],
+    name: "quoteBuy",
+    outputs: [{ internalType: "uint256", name: "costWad", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "name": "ownerOf",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [
+      { internalType: "uint8", name: "optionType", type: "uint8" },
+      { internalType: "uint256", name: "strikeWad", type: "uint256" },
+      { internalType: "uint256", name: "sizeWad", type: "uint256" },
+    ],
+    name: "quoteSell",
+    outputs: [{ internalType: "uint256", name: "revenueWad", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }],
-    "name": "tokensOfOwner",
-    "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [],
+    name: "getRiskNeutralPrices",
+    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "uint256", "name": "tokenId", "type": "uint256" }],
-    "name": "tokenURI",
-    "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [],
+    name: "getImpliedDistribution",
+    outputs: [
+      { internalType: "uint256[]", name: "midpoints", type: "uint256[]" },
+      { internalType: "uint256[]", name: "probabilities", type: "uint256[]" },
+    ],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [],
-    "name": "totalSupply",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  }
+    inputs: [],
+    name: "getCachedCost",
+    outputs: [{ internalType: "int256", name: "", type: "int256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getNumBuckets",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
-export const FUNDING_ORACLE_ABI = [
+export const BUCKET_REGISTRY_ABI = [
   {
-    "inputs": [{ "internalType": "address", "name": "underlying", "type": "address" }],
-    "name": "getSpotPrice",
-    "outputs": [{ "internalType": "uint256", "name": "price", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [],
+    name: "getSpotPrice",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [
-      { "internalType": "enum IFundingOracle.OptionType", "name": "optionType", "type": "uint8" },
-      { "internalType": "address", "name": "underlying", "type": "address" },
-      { "internalType": "uint256", "name": "strike", "type": "uint256" }
-    ],
-    "name": "getMarkPrice",
-    "outputs": [{ "internalType": "uint256", "name": "markPrice", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [],
+    name: "numBuckets",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [
-      { "internalType": "enum IFundingOracle.OptionType", "name": "optionType", "type": "uint8" },
-      { "internalType": "address", "name": "underlying", "type": "address" },
-      { "internalType": "uint256", "name": "strike", "type": "uint256" }
+    inputs: [{ internalType: "uint256", name: "index", type: "uint256" }],
+    name: "getBucketMidpoint",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getCenterPrice",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "needsRebalance",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const LP_POOL_ABI = [
+  {
+    inputs: [
+      { internalType: "uint256", name: "assets", type: "uint256" },
+      { internalType: "address", name: "receiver", type: "address" },
     ],
-    "name": "getIntrinsicValue",
-    "outputs": [{ "internalType": "uint256", "name": "intrinsic", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  }
+    name: "deposit",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "assets", type: "uint256" },
+      { internalType: "address", name: "receiver", type: "address" },
+      { internalType: "address", name: "owner", type: "address" },
+    ],
+    name: "withdraw",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "shares", type: "uint256" },
+      { internalType: "address", name: "receiver", type: "address" },
+      { internalType: "address", name: "owner", type: "address" },
+    ],
+    name: "redeem",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalAssets",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getMaxSubsidy",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalPremiums",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalFunding",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalLosses",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "shares", type: "uint256" }],
+    name: "convertToAssets",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "assets", type: "uint256" }],
+    name: "convertToShares",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const FUNDING_DERIVER_ABI = [
+  {
+    inputs: [
+      { internalType: "uint8", name: "optionType", type: "uint8" },
+      { internalType: "uint256", name: "strikeWad", type: "uint256" },
+    ],
+    name: "getMarkPrice",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint8", name: "optionType", type: "uint8" },
+      { internalType: "uint256", name: "strikeWad", type: "uint256" },
+    ],
+    name: "getIntrinsicValue",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint8", name: "optionType", type: "uint8" },
+      { internalType: "uint256", name: "strikeWad", type: "uint256" },
+      { internalType: "uint256", name: "sizeWad", type: "uint256" },
+    ],
+    name: "getFundingPerSecond",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const POSITION_TOKENS_ABI = [
+  {
+    inputs: [
+      { internalType: "address", name: "account", type: "address" },
+      { internalType: "uint256", name: "id", type: "uint256" },
+    ],
+    name: "balanceOf",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint8", name: "optionType", type: "uint8" },
+      { internalType: "uint256", name: "strikeWad", type: "uint256" },
+    ],
+    name: "encodeTokenId",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "pure",
+    type: "function",
+  },
 ] as const;
 
 export const ERC20_ABI = [
   {
-    "inputs": [
-      { "internalType": "address", "name": "spender", "type": "address" },
-      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    inputs: [
+      { internalType: "address", name: "spender", type: "address" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
     ],
-    "name": "approve",
-    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    name: "approve",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
   },
   {
-    "inputs": [{ "internalType": "address", "name": "account", "type": "address" }],
-    "name": "balanceOf",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [{ internalType: "address", name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "owner", "type": "address" },
-      { "internalType": "address", "name": "spender", "type": "address" }
+    inputs: [
+      { internalType: "address", name: "owner", type: "address" },
+      { internalType: "address", name: "spender", type: "address" },
     ],
-    "name": "allowance",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
+    name: "allowance",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [],
-    "name": "decimals",
-    "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [],
+    name: "decimals",
+    outputs: [{ internalType: "uint8", name: "", type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
   },
   {
-    "inputs": [],
-    "name": "symbol",
-    "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
-    "stateMutability": "view",
-    "type": "function"
-  }
+    inputs: [],
+    name: "symbol",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;

@@ -89,7 +89,7 @@ export default function Faucet() {
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Get Test Tokens</h1>
         <p className="text-gray-400">
-          Wrap your test ETH to WETH for CALL options, or get test USDC for PUT options.
+          Get test USDC for trading options and providing LP liquidity, or wrap ETH to WETH for gas.
         </p>
       </div>
 
@@ -106,16 +106,47 @@ export default function Faucet() {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-gray-900 rounded-lg p-4">
+            <p className="text-gray-400 text-sm">USDC</p>
+            <p className="text-xl font-bold text-white">
+              {usdcBalance ? formatUnits(usdcBalance, 6) : '0'} USDC
+            </p>
+          </div>
+          <div className="bg-gray-900 rounded-lg p-4">
             <p className="text-gray-400 text-sm">WETH</p>
             <p className="text-xl font-bold text-white">
               {wethBalance ? formatEther(wethBalance) : '0'} WETH
             </p>
           </div>
-          <div className="bg-gray-900 rounded-lg p-4">
-            <p className="text-gray-400 text-sm">USDC</p>
-            <p className="text-xl font-bold text-white">
-              {usdcBalance ? formatUnits(usdcBalance, 6) : '0'} USDC
-            </p>
+        </div>
+      </div>
+
+      {/* Get USDC */}
+      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+        <h2 className="text-lg font-semibold text-white mb-4">Get Test USDC</h2>
+        <p className="text-sm text-gray-400 mb-4">
+          USDC is used for everything in EverLast: paying option premiums, funding your positions, and providing LP liquidity.
+        </p>
+
+        <div className="bg-gray-900 rounded-lg p-4">
+          <p className="text-gray-300 mb-3">To get test USDC on Base Sepolia:</p>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400">
+            <li>
+              Visit the{' '}
+              <a
+                href="https://faucet.circle.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-400 hover:text-primary-300 underline"
+              >
+                Circle USDC Faucet
+              </a>
+            </li>
+            <li>Select &quot;Base Sepolia&quot; network</li>
+            <li>Enter your wallet address</li>
+            <li>Complete the captcha and claim USDC</li>
+          </ol>
+          <div className="mt-4 p-3 bg-gray-800 rounded text-xs font-mono text-gray-400 break-all">
+            Your address: {address}
           </div>
         </div>
       </div>
@@ -124,7 +155,7 @@ export default function Faucet() {
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
         <h2 className="text-lg font-semibold text-white mb-4">Wrap ETH to WETH</h2>
         <p className="text-sm text-gray-400 mb-4">
-          WETH is required as collateral for CALL options. Wrap your test ETH to get WETH.
+          WETH wrapping is available if needed for gas or other operations on Base.
         </p>
 
         <div className="flex gap-2 mb-4">
@@ -153,41 +184,10 @@ export default function Faucet() {
         )}
       </div>
 
-      {/* Get USDC */}
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <h2 className="text-lg font-semibold text-white mb-4">Get Test USDC</h2>
-        <p className="text-sm text-gray-400 mb-4">
-          USDC is required as collateral for PUT options and for initial funding.
-        </p>
-
-        <div className="bg-gray-900 rounded-lg p-4">
-          <p className="text-gray-300 mb-3">To get test USDC on Base Sepolia:</p>
-          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400">
-            <li>
-              Visit the{' '}
-              <a
-                href="https://faucet.circle.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-400 hover:text-primary-300 underline"
-              >
-                Circle USDC Faucet
-              </a>
-            </li>
-            <li>Select "Base Sepolia" network</li>
-            <li>Enter your wallet address</li>
-            <li>Complete the captcha and claim USDC</li>
-          </ol>
-          <div className="mt-4 p-3 bg-gray-800 rounded text-xs font-mono text-gray-400 break-all">
-            Your address: {address}
-          </div>
-        </div>
-      </div>
-
       {/* Info */}
       <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 text-sm text-blue-300">
-        <strong>Tip:</strong> For CALL options, you need WETH. For PUT options, you need USDC.
-        The initial funding from the long position holder is always in USDC.
+        <strong>Tip:</strong> All option trading on EverLast is USDC-settled. You need USDC to buy options,
+        deposit funding, and provide LP liquidity. Get test USDC from the Circle faucet above.
       </div>
     </div>
   );

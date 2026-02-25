@@ -7,8 +7,9 @@ import { useState, useEffect, useRef } from 'react';
 
 const navItems = [
   { href: '/', label: 'Dashboard' },
-  { href: '/open', label: 'Open Position' },
+  { href: '/buy', label: 'Buy Option' },
   { href: '/positions', label: 'My Positions' },
+  { href: '/pool', label: 'LP Pool' },
   { href: '/liquidate', label: 'Liquidate' },
   { href: '/faucet', label: 'Faucet' },
 ];
