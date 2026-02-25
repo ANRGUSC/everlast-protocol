@@ -9,6 +9,7 @@ import {
   LP_POOL_ABI,
   ERC20_ABI,
   USDC_DECIMALS,
+  SHARE_DECIMALS,
 } from '@/config/contracts';
 
 export default function Pool() {
@@ -79,7 +80,7 @@ export default function Pool() {
   });
 
   // ─── Redeem Preview ───────────────────────────────────────────────────────
-  const redeemSharesParsed = redeemShares ? parseUnits(redeemShares, 18) : 0n;
+  const redeemSharesParsed = redeemShares ? parseUnits(redeemShares, SHARE_DECIMALS) : 0n;
   const { data: previewAssets } = useReadContract({
     address: CONTRACTS.lpPool,
     abi: LP_POOL_ABI,
@@ -90,12 +91,12 @@ export default function Pool() {
 
   const { writeContractAsync } = useWriteContract();
 
-  // Share price: 1 share (1e18) → how much USDC
+  // Share price: 1 share (1e6) → how much USDC
   const { data: oneShareValue } = useReadContract({
     address: CONTRACTS.lpPool,
     abi: LP_POOL_ABI,
     functionName: 'convertToAssets',
-    args: [BigInt(1e18)],
+    args: [BigInt(10 ** SHARE_DECIMALS)],
     query: { enabled: hasContracts },
   });
 
@@ -144,7 +145,7 @@ export default function Pool() {
     setIsProcessing(true);
 
     try {
-      const shares = parseUnits(redeemShares, 18);
+      const shares = parseUnits(redeemShares, SHARE_DECIMALS);
 
       setProcessingStatus('Redeeming shares...');
       const redeemHash = await writeContractAsync({
@@ -195,7 +196,7 @@ export default function Pool() {
           <div className="bg-gray-900 rounded-lg p-4">
             <p className="text-gray-400 text-sm">LP Shares</p>
             <p className="text-xl font-bold text-white">
-              {lpShares ? Number(formatUnits(lpShares, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
+              {lpShares ? Number(formatUnits(lpShares, SHARE_DECIMALS)).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0'}
             </p>
           </div>
           <div className="bg-gray-900 rounded-lg p-4">
@@ -258,7 +259,7 @@ export default function Pool() {
         {previewShares && depositAmountParsed > 0n && (
           <p className="text-sm text-gray-400">
             You will receive: <span className="text-white font-medium">
-              {Number(formatUnits(previewShares, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 })} shares
+              {Number(formatUnits(previewShares, SHARE_DECIMALS)).toLocaleString(undefined, { maximumFractionDigits: 4 })} shares
             </span>
           </p>
         )}
@@ -286,10 +287,10 @@ export default function Pool() {
         </div>
         {lpShares && lpShares > 0n && (
           <button
-            onClick={() => setRedeemShares(formatUnits(lpShares, 18))}
+            onClick={() => setRedeemShares(formatUnits(lpShares, SHARE_DECIMALS))}
             className="text-sm text-primary-400 hover:text-primary-300 mb-2"
           >
-            Max: {Number(formatUnits(lpShares, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 })} shares
+            Max: {Number(formatUnits(lpShares, SHARE_DECIMALS)).toLocaleString(undefined, { maximumFractionDigits: 4 })} shares
           </button>
         )}
         {previewAssets && redeemSharesParsed > 0n && (
@@ -328,7 +329,7 @@ export default function Pool() {
           </li>
         </ul>
         <p className="text-xs text-gray-500 mt-4">
-          LP shares are ERC-4626 vault tokens (18 decimals). The underlying asset is USDC (6 decimals).
+          LP shares are ERC-4626 vault tokens (6 decimals, matching USDC). The underlying asset is USDC (6 decimals).
         </p>
       </div>
     </div>

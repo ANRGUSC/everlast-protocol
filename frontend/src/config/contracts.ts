@@ -3,6 +3,7 @@ import { Address } from 'viem';
 // ─── Constants ──────────────────────────────────────────────────────────────
 export const WAD = BigInt(1e18);
 export const USDC_DECIMALS = 6;
+export const SHARE_DECIMALS = 6; // ERC-4626 shares inherit USDC decimals (decimalsOffset = 0)
 export const USDC_TO_WAD = BigInt(1e12); // multiply USDC (1e6) by this to get WAD (1e18)
 
 // ─── Contract Addresses (Base Sepolia) ──────────────────────────────────────
