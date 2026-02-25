@@ -29,6 +29,7 @@ function PositionCard({
   const [sellSize, setSellSize] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const hasContracts = CONTRACTS.evOptionManager !== '0x0000000000000000000000000000000000000000';
 
@@ -104,7 +105,9 @@ function PositionCard({
     : 0;
 
   const handleExercise = async () => {
+    if (!hasContracts) return;
     try {
+      setError(null);
       setIsProcessing(true);
       setProcessingStatus('Exercising option...');
       const hash = await writeContractAsync({
@@ -116,8 +119,9 @@ function PositionCard({
       setProcessingStatus('Waiting for confirmation...');
       await waitForTransactionReceipt(config, { hash });
       onAction();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Exercise failed:', err);
+      setError(err.shortMessage || err.message || 'Exercise failed');
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
@@ -125,7 +129,9 @@ function PositionCard({
   };
 
   const handleDepositFunding = async () => {
+    if (!hasContracts) return;
     try {
+      setError(null);
       setIsProcessing(true);
       const amount = parseUnits(fundingAmount, USDC_DECIMALS);
 
@@ -151,8 +157,9 @@ function PositionCard({
 
       setShowFundingModal(false);
       onAction();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Deposit funding failed:', err);
+      setError(err.shortMessage || err.message || 'Deposit funding failed');
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
@@ -160,7 +167,9 @@ function PositionCard({
   };
 
   const handleSell = async () => {
+    if (!hasContracts) return;
     try {
+      setError(null);
       setIsProcessing(true);
       setProcessingStatus('Selling position to CLUM...');
       const hash = await writeContractAsync({
@@ -173,8 +182,9 @@ function PositionCard({
       await waitForTransactionReceipt(config, { hash });
       setShowSellModal(false);
       onAction();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Sell failed:', err);
+      setError(err.shortMessage || err.message || 'Sell failed');
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
@@ -237,6 +247,12 @@ function PositionCard({
         {isProcessing && processingStatus && (
           <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-2 text-sm text-primary-400 animate-pulse">
             {processingStatus}
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-900/30 border border-red-500 rounded-lg p-2 text-sm text-red-400">
+            {error}
           </div>
         )}
 

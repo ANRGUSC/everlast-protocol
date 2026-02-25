@@ -75,6 +75,7 @@ function LiquidatablePosition({ tokenId }: { tokenId: string }) {
   const effectiveBalanceFormatted = Number(formatUnits(effectiveBalance > 0n ? effectiveBalance : 0n, USDC_DECIMALS)).toLocaleString();
 
   const handleLiquidate = () => {
+    if (!hasContracts) return;
     liquidate({
       address: CONTRACTS.evOptionManager,
       abi: EV_OPTION_MANAGER_ABI,
