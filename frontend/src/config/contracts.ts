@@ -5,14 +5,14 @@ export const WAD = BigInt(1e18);
 export const USDC_DECIMALS = 6;
 export const USDC_TO_WAD = BigInt(1e12); // multiply USDC (1e6) by this to get WAD (1e18)
 
-// ─── Contract Addresses (placeholders until testnet deployment) ─────────────
+// ─── Contract Addresses (Base Sepolia) ──────────────────────────────────────
 export const CONTRACTS = {
-  evOptionManager: '0x0000000000000000000000000000000000000000' as Address,
-  clumEngine:      '0x0000000000000000000000000000000000000000' as Address,
-  bucketRegistry:  '0x0000000000000000000000000000000000000000' as Address,
-  lpPool:          '0x0000000000000000000000000000000000000000' as Address,
-  fundingDeriver:  '0x0000000000000000000000000000000000000000' as Address,
-  positionTokens:  '0x0000000000000000000000000000000000000000' as Address,
+  evOptionManager: '0xBC590849f16538d8EaFBE19334f7FeE30f7D41bd' as Address,
+  clumEngine:      '0x2564af08844E9859fBcC46A60ac38d581C6a3c3c' as Address,
+  bucketRegistry:  '0x9c479b8ea3eAe81AdFCeBC5E48B10fc15DBD2C21' as Address,
+  lpPool:          '0x9C97Cd7C8dFb656fd17C36CBcfFAdC1ddb1e00d6' as Address,
+  fundingDeriver:  '0x47b53b9473E38e5B85c1e494F6757E54D0053654' as Address,
+  positionTokens:  '0x5260609Ee804f59c5e81cd86Fb5CB770937A76C2' as Address,
   usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address,
   weth: '0x4200000000000000000000000000000000000006' as Address,
 };

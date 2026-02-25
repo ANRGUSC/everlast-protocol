@@ -198,6 +198,7 @@ export default function Dashboard() {
   const tvl = totalAssets
     ? Number(formatUnits(totalAssets, USDC_DECIMALS)).toLocaleString(undefined, { maximumFractionDigits: 0 })
     : '---';
+  const dataAvailable = hasContracts && (ethPrice !== undefined || totalAssets !== undefined);
 
   // Section visibility
   const stats = useInView();
@@ -253,13 +254,13 @@ export default function Dashboard() {
           <div className="text-center">
             <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">ETH Price</p>
             <p className="text-2xl md:text-3xl font-bold text-white">
-              {ethPrice ? formatPrice(ethPrice) : <AnimatedNumber value={ethPriceNum} prefix="$" />}
+              {ethPrice ? formatPrice(ethPrice) : dataAvailable ? <AnimatedNumber value={ethPriceNum} prefix="$" /> : '$---'}
             </p>
           </div>
           <div className="text-center">
             <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Total Positions</p>
             <p className="text-2xl md:text-3xl font-bold text-white">
-              <AnimatedNumber value={totalPositions} />
+              {dataAvailable ? <AnimatedNumber value={totalPositions} /> : '---'}
             </p>
           </div>
           <div className="text-center">

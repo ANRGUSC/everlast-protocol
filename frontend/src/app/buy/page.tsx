@@ -90,7 +90,7 @@ export default function BuyOption() {
     : 0;
 
   const handleBuy = async () => {
-    if (!address || !strike || !size || !initialFunding) return;
+    if (!address || !strike || !size || !initialFunding || !hasContracts) return;
     setError(null);
     setIsProcessing(true);
 
@@ -321,7 +321,7 @@ export default function BuyOption() {
           {/* Buy Button */}
           <button
             onClick={handleBuy}
-            disabled={isProcessing || !strike || !size || !initialFunding}
+            disabled={isProcessing || !strike || !size || !initialFunding || !hasContracts}
             className="w-full bg-primary-600 hover:bg-primary-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors"
           >
             {isProcessing ? 'Processing...' : 'Approve & Buy Option'}

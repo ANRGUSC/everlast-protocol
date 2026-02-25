@@ -100,7 +100,7 @@ export default function Pool() {
   });
 
   const handleDeposit = async () => {
-    if (!address || !depositAmount) return;
+    if (!address || !depositAmount || !hasContracts) return;
     setError(null);
     setIsProcessing(true);
 
@@ -139,7 +139,7 @@ export default function Pool() {
   };
 
   const handleRedeem = async () => {
-    if (!address || !redeemShares) return;
+    if (!address || !redeemShares || !hasContracts) return;
     setError(null);
     setIsProcessing(true);
 
@@ -249,7 +249,7 @@ export default function Pool() {
           />
           <button
             onClick={handleDeposit}
-            disabled={isProcessing || !depositAmount}
+            disabled={isProcessing || !depositAmount || !hasContracts}
             className="bg-primary-600 hover:bg-primary-500 disabled:bg-gray-600 text-white py-3 px-6 rounded-lg font-medium transition-colors"
           >
             {isProcessing ? 'Processing...' : 'Deposit'}
@@ -278,7 +278,7 @@ export default function Pool() {
           />
           <button
             onClick={handleRedeem}
-            disabled={isProcessing || !redeemShares}
+            disabled={isProcessing || !redeemShares || !hasContracts}
             className="bg-orange-600 hover:bg-orange-500 disabled:bg-gray-600 text-white py-3 px-6 rounded-lg font-medium transition-colors"
           >
             {isProcessing ? 'Processing...' : 'Redeem'}
