@@ -84,9 +84,9 @@ export default function BuyOption() {
   const fundingNum = parseFloat(initialFunding || '0');
   const totalCost = premiumUsdc + fundingNum;
 
-  // Funding rate per day for display
+  // Funding rate per day for display (contract returns WAD-scaled value)
   const fundingPerDay = fundingPerSecond
-    ? Number(formatUnits(fundingPerSecond, USDC_DECIMALS)) * 86400
+    ? Number(formatUnits(fundingPerSecond, 18)) * 86400
     : 0;
 
   const handleBuy = async () => {

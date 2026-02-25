@@ -91,6 +91,60 @@ contract CLUMEngine is ICLUMEngine, Ownable, ReentrancyGuard {
         initialized = true;
     }
 
+    /// @notice Initialize the engine with a subsidy and log-normal prior
+    /// @dev Computes bucket weights from the log-normal PDF evaluated at each
+    ///      bucket midpoint, using the oracle spot price as the distribution center.
+    ///      w_i = exp(-(ln(mid_i/spot))^2 / (2*sigma^2)) / mid_i
+    ///      Weights are then normalized so priors sum to WAD.
+    /// @param subsidyWad The initial subsidy in WAD (determines C(0) and U)
+    /// @param sigmaWad  Log-normal sigma in WAD (e.g. 0.5e18 = 50% vol)
+    function initializeWithLogNormalPrior(
+        uint256 subsidyWad,
+        uint256 sigmaWad
+    ) external onlyOwner {
+        if (initialized) revert AlreadyInitialized();
+        require(subsidyWad > 0, "Zero subsidy");
+        require(sigmaWad > 0, "Zero sigma");
+
+        uint256 n = _numBuckets;
+        uint256 spotWad = bucketRegistry.getSpotPrice();
+        int256 lnSpot = CLUMMath.lnWad(CLUMMath.toInt256(spotWad));
+
+        int256 twoSigmaSqWad = int256(2 * (sigmaWad * sigmaWad) / WAD);
+
+        uint256[] memory weights = new uint256[](n);
+        uint256 totalWeight = 0;
+
+        for (uint256 i = 0; i < n; i++) {
+            uint256 mid = bucketRegistry.getBucketMidpoint(i);
+            int256 lnMid = CLUMMath.lnWad(CLUMMath.toInt256(mid));
+            int256 diff = lnMid - lnSpot;
+
+            int256 diffSqWad = (diff * diff) / int256(WAD);
+            int256 exponent = -(diffSqWad * int256(WAD)) / twoSigmaSqWad;
+
+            uint256 expVal = CLUMMath.toUint256(CLUMMath.expWad(exponent));
+            uint256 w = CLUMMath.divWad(expVal, mid);
+
+            weights[i] = w;
+            totalWeight += w;
+        }
+
+        require(totalWeight > 0, "Zero total weight");
+
+        uint256 priorSum = 0;
+        for (uint256 i = 0; i < n; i++) {
+            priors[i] = (weights[i] * WAD) / totalWeight;
+            quantities[i] = 0;
+            priorSum += priors[i];
+        }
+        priors[0] += WAD - priorSum;
+
+        cachedCost = CLUMMath.toInt256(subsidyWad);
+        utilityLevel = CLUMMath.lnWad(cachedCost);
+        initialized = true;
+    }
+
     /// @notice Set the option manager address
     function setOptionManager(address _manager) external onlyOwner {
         require(_manager != address(0), "Invalid manager");

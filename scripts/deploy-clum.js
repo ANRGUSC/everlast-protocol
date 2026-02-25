@@ -9,7 +9,6 @@ const BASE_SEPOLIA = {
 const WAD = BigInt(1e18);
 
 const BUCKET_CONFIG = {
-  centerPriceWad: 2500n * WAD,       // $2500 center
   bucketWidthWad: 100n * WAD,        // $100 per bucket
   numRegular: 20n,                   // 20 regular + 2 tails = 22 total
   rebalanceThreshold: WAD / 10n,     // 10% from center triggers rebalance
@@ -17,6 +16,7 @@ const BUCKET_CONFIG = {
 };
 
 const CLUM_SUBSIDY = 100n * WAD;     // Initial CLUM subsidy
+const CLUM_SIGMA = WAD / 2n;         // 0.5 = 50% vol for log-normal prior
 const PREMIUM_FACTOR = WAD;          // 1x minimum
 const FUNDING_PERIOD = 86400n;       // daily funding
 const ARB_TOLERANCE = WAD / 1000n;   // 0.001 WAD
@@ -54,12 +54,24 @@ async function main() {
   console.log("     PositionTokens:", positionTokensAddr);
   await delay(5000);
 
-  // 2. BucketRegistry
+  // 2. BucketRegistry — read oracle spot to derive center price
   console.log("2/7  Deploying BucketRegistry...");
+  const priceFeed = await hre.ethers.getContractAt(
+    "AggregatorV3Interface",
+    addresses.ETH_USD_FEED
+  );
+  const [, answer] = await priceFeed.latestRoundData();
+  const spotWad = BigInt(answer) * 10n ** 10n; // Chainlink 1e8 → WAD 1e18
+  const centerPriceWad =
+    (spotWad / BUCKET_CONFIG.bucketWidthWad) * BUCKET_CONFIG.bucketWidthWad +
+    BUCKET_CONFIG.bucketWidthWad / 2n;
+  console.log("     Oracle spot:  $" + hre.ethers.formatUnits(spotWad, 18));
+  console.log("     Grid center:  $" + hre.ethers.formatUnits(centerPriceWad, 18));
+
   const BucketRegistry = await hre.ethers.getContractFactory("BucketRegistry");
   const bucketRegistry = await BucketRegistry.deploy(
     addresses.ETH_USD_FEED,
-    BUCKET_CONFIG.centerPriceWad,
+    centerPriceWad,
     BUCKET_CONFIG.bucketWidthWad,
     BUCKET_CONFIG.numRegular,
     BUCKET_CONFIG.rebalanceThreshold,
@@ -163,10 +175,10 @@ async function main() {
   );
   await delay(3000);
 
-  console.log("  Initializing CLUMEngine with subsidy...");
+  console.log("  Initializing CLUMEngine with log-normal prior (sigma=" + hre.ethers.formatUnits(CLUM_SIGMA, 18) + ")...");
   await waitForTx(
-    await clumEngine.initialize(CLUM_SUBSIDY),
-    "CLUMEngine.initialize"
+    await clumEngine.initializeWithLogNormalPrior(CLUM_SUBSIDY, CLUM_SIGMA),
+    "CLUMEngine.initializeWithLogNormalPrior"
   );
 
   // ─── Summary ─────────────────────────────────────────────────────────

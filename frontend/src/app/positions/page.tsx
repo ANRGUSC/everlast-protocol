@@ -101,7 +101,7 @@ function PositionCard({
   const intrinsic = intrinsicValue ? Number(formatUnits(intrinsicValue, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0';
   const isITM = intrinsicValue && intrinsicValue > 0n;
   const fundingPerDay = fundingPerSecond
-    ? Number(formatUnits(fundingPerSecond, USDC_DECIMALS)) * 86400
+    ? Number(formatUnits(fundingPerSecond, 18)) * 86400
     : 0;
 
   const handleExercise = async () => {

@@ -8,12 +8,12 @@ export const USDC_TO_WAD = BigInt(1e12); // multiply USDC (1e6) by this to get W
 
 // ─── Contract Addresses (Base Sepolia) ──────────────────────────────────────
 export const CONTRACTS = {
-  evOptionManager: '0xBC590849f16538d8EaFBE19334f7FeE30f7D41bd' as Address,
-  clumEngine:      '0x2564af08844E9859fBcC46A60ac38d581C6a3c3c' as Address,
-  bucketRegistry:  '0x9c479b8ea3eAe81AdFCeBC5E48B10fc15DBD2C21' as Address,
-  lpPool:          '0x9C97Cd7C8dFb656fd17C36CBcfFAdC1ddb1e00d6' as Address,
-  fundingDeriver:  '0x47b53b9473E38e5B85c1e494F6757E54D0053654' as Address,
-  positionTokens:  '0x5260609Ee804f59c5e81cd86Fb5CB770937A76C2' as Address,
+  evOptionManager: '0xFD0fFcb0f05ADDDb5209F4041FAC8035E6A422Bc' as Address,
+  clumEngine:      '0x9f60e207F7eea86784AAAD9375154936cecf4792' as Address,
+  bucketRegistry:  '0x8ed62D170B8F1dbDFAAEB04ff7d5fc3893573541' as Address,
+  lpPool:          '0xF7430e5073Cd29FafbDe90cB2CB03ba308Ec8E19' as Address,
+  fundingDeriver:  '0xF7c80F55645381a99683b6bC1dDaccB6ADBf1b3C' as Address,
+  positionTokens:  '0xc125b6Ea79887e0150a6F3eA4B699683E495113B' as Address,
   usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address,
   weth: '0x4200000000000000000000000000000000000006' as Address,
 };

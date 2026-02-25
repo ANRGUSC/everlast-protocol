@@ -95,7 +95,7 @@ flowchart TD
 
 | Contract | Purpose |
 |----------|---------|
-| **CLUMEngine** | Core AMM: maintains quantity vector, solves `sum(pi_i * ln(C - q_i)) = U` via bisection |
+| **CLUMEngine** | Core AMM: maintains quantity vector, solves `sum(pi_i * ln(C - q_i)) = U` via bisection. Supports log-normal prior initialization |
 | **BucketRegistry** | Discretized price space (N regular + 2 tail buckets) with oracle-driven recentering |
 | **LPPool** | ERC-4626 vault backing the CLUM with bounded-loss subsidy accounting |
 | **PositionTokens** | ERC-1155 semi-fungible tokens encoding option type and strike |
@@ -116,18 +116,49 @@ The original peer-to-peer contracts (`OptionManager`, `PerpetualOptionNFT`, `Fun
 
 ---
 
+## CLUM Prior Distribution
+
+The CLUM's pricing depends on a prior probability distribution over the discretized price space. Two initialization modes are available:
+
+| Mode | Function | Description |
+|------|----------|-------------|
+| Uniform | `initialize(subsidy)` | Equal probability per bucket (1/n). Simple but produces unrealistically high option prices at launch since extreme price outcomes are weighted equally. |
+| Log-normal | `initializeWithLogNormalPrior(subsidy, sigma)` | Probability concentrated near current spot price following a log-normal distribution. Produces economically reasonable initial prices. |
+
+### Log-Normal Prior
+
+The log-normal prior computes unnormalized weights for each bucket using the PDF evaluated at the bucket midpoint:
+
+```
+w_i = exp(-(ln(mid_i / spot))^2 / (2 * sigma^2)) / mid_i
+```
+
+All weights are normalized on-chain to sum to 1 (WAD). The computation uses the existing `CLUMMath.lnWad` and `CLUMMath.expWad` functions with no additional dependencies.
+
+**Sigma parameter** controls how concentrated the prior is around spot:
+
+| Sigma | 68% of probability within | Typical use |
+|-------|--------------------------|-------------|
+| 0.3 | +/-30% of spot | Conservative, tight spread |
+| 0.5 | +/-50% of spot | Default, moderate spread |
+| 0.8 | +/-80% of spot | Wide, accommodates high vol |
+
+The deployment script reads the current oracle spot price and centers the bucket grid on it automatically.
+
+---
+
 ## Deployed Contracts (Base Sepolia)
 
 ### CLUM System (Active)
 
 | Contract | Address |
 |----------|---------|
-| EvOptionManager | [`0xBC590849f16538d8EaFBE19334f7FeE30f7D41bd`](https://sepolia.basescan.org/address/0xBC590849f16538d8EaFBE19334f7FeE30f7D41bd) |
-| CLUMEngine | [`0x2564af08844E9859fBcC46A60ac38d581C6a3c3c`](https://sepolia.basescan.org/address/0x2564af08844E9859fBcC46A60ac38d581C6a3c3c) |
-| BucketRegistry | [`0x9c479b8ea3eAe81AdFCeBC5E48B10fc15DBD2C21`](https://sepolia.basescan.org/address/0x9c479b8ea3eAe81AdFCeBC5E48B10fc15DBD2C21) |
-| LPPool | [`0x9C97Cd7C8dFb656fd17C36CBcfFAdC1ddb1e00d6`](https://sepolia.basescan.org/address/0x9C97Cd7C8dFb656fd17C36CBcfFAdC1ddb1e00d6) |
-| FundingDeriver | [`0x47b53b9473E38e5B85c1e494F6757E54D0053654`](https://sepolia.basescan.org/address/0x47b53b9473E38e5B85c1e494F6757E54D0053654) |
-| PositionTokens | [`0x5260609Ee804f59c5e81cd86Fb5CB770937A76C2`](https://sepolia.basescan.org/address/0x5260609Ee804f59c5e81cd86Fb5CB770937A76C2) |
+| EvOptionManager | [`0xFD0fFcb0f05ADDDb5209F4041FAC8035E6A422Bc`](https://sepolia.basescan.org/address/0xFD0fFcb0f05ADDDb5209F4041FAC8035E6A422Bc) |
+| CLUMEngine | [`0x9f60e207F7eea86784AAAD9375154936cecf4792`](https://sepolia.basescan.org/address/0x9f60e207F7eea86784AAAD9375154936cecf4792) |
+| BucketRegistry | [`0x8ed62D170B8F1dbDFAAEB04ff7d5fc3893573541`](https://sepolia.basescan.org/address/0x8ed62D170B8F1dbDFAAEB04ff7d5fc3893573541) |
+| LPPool | [`0xF7430e5073Cd29FafbDe90cB2CB03ba308Ec8E19`](https://sepolia.basescan.org/address/0xF7430e5073Cd29FafbDe90cB2CB03ba308Ec8E19) |
+| FundingDeriver | [`0xF7c80F55645381a99683b6bC1dDaccB6ADBf1b3C`](https://sepolia.basescan.org/address/0xF7c80F55645381a99683b6bC1dDaccB6ADBf1b3C) |
+| PositionTokens | [`0xc125b6Ea79887e0150a6F3eA4B699683E495113B`](https://sepolia.basescan.org/address/0xc125b6Ea79887e0150a6F3eA4B699683E495113B) |
 | USDC | [`0x036CbD53842c5426634e7929541eC2318f3dCF7e`](https://sepolia.basescan.org/address/0x036CbD53842c5426634e7929541eC2318f3dCF7e) |
 | WETH | [`0x4200000000000000000000000000000000000006`](https://sepolia.basescan.org/address/0x4200000000000000000000000000000000000006) |
 
@@ -160,9 +191,16 @@ npx hardhat test
 # Run CLUM tests only
 npx hardhat test test/CLUM.test.js
 
+# Deploy CLUM contracts to Base Sepolia
+#   Reads oracle spot price for grid center, initializes with log-normal prior
+#   Requires PRIVATE_KEY and BASE_SEPOLIA_RPC_URL in .env
+npx hardhat run scripts/deploy-clum.js --network baseSepolia
+
 # Run frontend locally
 cd frontend && npm install && npm run dev
 ```
+
+After deploying, update the contract addresses in `frontend/src/config/contracts.ts` with the output from the deploy script.
 
 ### Tech Stack
 
