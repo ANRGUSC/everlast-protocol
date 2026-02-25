@@ -124,6 +124,7 @@ export default function Pool() {
         abi: LP_POOL_ABI,
         functionName: 'deposit',
         args: [amount, address],
+        gas: 300_000n,
       });
       setProcessingStatus('Waiting for confirmation...');
       await waitForTransactionReceipt(config, { hash: depositHash });
@@ -153,6 +154,7 @@ export default function Pool() {
         abi: LP_POOL_ABI,
         functionName: 'redeem',
         args: [shares, address, address],
+        gas: 300_000n,
       });
       setProcessingStatus('Waiting for confirmation...');
       await waitForTransactionReceipt(config, { hash: redeemHash });

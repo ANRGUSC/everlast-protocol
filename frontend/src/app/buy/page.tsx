@@ -122,6 +122,7 @@ export default function BuyOption() {
         abi: EV_OPTION_MANAGER_ABI,
         functionName: 'buyOption',
         args: [optionType, strikeUsdc, sizeWad, fundingUsdc],
+        gas: 800_000n,
       });
       setProcessingStatus('Waiting for confirmation...');
       await waitForTransactionReceipt(config, { hash: buyHash });

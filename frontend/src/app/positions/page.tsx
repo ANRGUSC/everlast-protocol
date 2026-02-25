@@ -115,6 +115,7 @@ function PositionCard({
         abi: EV_OPTION_MANAGER_ABI,
         functionName: 'exercise',
         args: [positionId],
+        gas: 500_000n,
       });
       setProcessingStatus('Waiting for confirmation...');
       await waitForTransactionReceipt(config, { hash });
@@ -151,6 +152,7 @@ function PositionCard({
         abi: EV_OPTION_MANAGER_ABI,
         functionName: 'depositFunding',
         args: [positionId, amount],
+        gas: 200_000n,
       });
       setProcessingStatus('Waiting for confirmation...');
       await waitForTransactionReceipt(config, { hash: depositHash });
@@ -177,6 +179,7 @@ function PositionCard({
         abi: EV_OPTION_MANAGER_ABI,
         functionName: 'sellOption',
         args: [positionId, sellSizeWad],
+        gas: 800_000n,
       });
       setProcessingStatus('Waiting for confirmation...');
       await waitForTransactionReceipt(config, { hash });
