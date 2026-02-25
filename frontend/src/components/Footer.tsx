@@ -6,6 +6,7 @@ const tradingLinks = [
   { href: '/buy', label: 'Buy Option' },
   { href: '/positions', label: 'My Positions' },
   { href: '/pool', label: 'LP Pool' },
+  { href: '/analytics', label: 'Analytics' },
   { href: '/liquidate', label: 'Liquidate' },
 ];
 
