@@ -77,18 +77,18 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    EM[EvOptionManager\nCore Controller]
+    EM["EvOptionManager<br/>Core Controller"]
 
-    EM --> CLUM[CLUMEngine\nCost Function + State]
-    EM --> LP[LPPool\nERC-4626 Vault]
-    EM --> PT[PositionTokens\nERC-1155]
-    EM --> FD[FundingDeriver\nImplied-Dist Rates]
-    EM --> AG[ArbitrageGuard\nNo-Arb Enforcement]
+    EM --> CLUM["CLUMEngine<br/>Cost Function + State"]
+    EM --> LP["LPPool<br/>ERC-4626 Vault"]
+    EM --> PT["PositionTokens<br/>ERC-1155"]
+    EM --> FD["FundingDeriver<br/>Implied-Dist Rates"]
+    EM --> AG["ArbitrageGuard<br/>No-Arb Enforcement"]
 
-    CLUM --> BR[BucketRegistry\nDiscretized Price Space]
+    CLUM --> BR["BucketRegistry<br/>Discretized Price Space"]
     FD --> BR
 
-    BR --> CL[Chainlink ETH/USD]
+    BR --> CL["Chainlink ETH/USD"]
 ```
 
 ### Core Contracts (`contracts/clum/`)
