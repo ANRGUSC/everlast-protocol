@@ -118,7 +118,21 @@ The original peer-to-peer contracts (`OptionManager`, `PerpetualOptionNFT`, `Fun
 
 ## Deployed Contracts (Base Sepolia)
 
-> Legacy peer-to-peer deployment. CLUM contracts are not yet deployed to testnet.
+### CLUM System (Active)
+
+| Contract | Address |
+|----------|---------|
+| EvOptionManager | [`0xBC590849f16538d8EaFBE19334f7FeE30f7D41bd`](https://sepolia.basescan.org/address/0xBC590849f16538d8EaFBE19334f7FeE30f7D41bd) |
+| CLUMEngine | [`0x2564af08844E9859fBcC46A60ac38d581C6a3c3c`](https://sepolia.basescan.org/address/0x2564af08844E9859fBcC46A60ac38d581C6a3c3c) |
+| BucketRegistry | [`0x9c479b8ea3eAe81AdFCeBC5E48B10fc15DBD2C21`](https://sepolia.basescan.org/address/0x9c479b8ea3eAe81AdFCeBC5E48B10fc15DBD2C21) |
+| LPPool | [`0x9C97Cd7C8dFb656fd17C36CBcfFAdC1ddb1e00d6`](https://sepolia.basescan.org/address/0x9C97Cd7C8dFb656fd17C36CBcfFAdC1ddb1e00d6) |
+| FundingDeriver | [`0x47b53b9473E38e5B85c1e494F6757E54D0053654`](https://sepolia.basescan.org/address/0x47b53b9473E38e5B85c1e494F6757E54D0053654) |
+| PositionTokens | [`0x5260609Ee804f59c5e81cd86Fb5CB770937A76C2`](https://sepolia.basescan.org/address/0x5260609Ee804f59c5e81cd86Fb5CB770937A76C2) |
+| USDC | [`0x036CbD53842c5426634e7929541eC2318f3dCF7e`](https://sepolia.basescan.org/address/0x036CbD53842c5426634e7929541eC2318f3dCF7e) |
+| WETH | [`0x4200000000000000000000000000000000000006`](https://sepolia.basescan.org/address/0x4200000000000000000000000000000000000006) |
+
+<details>
+<summary>Legacy Peer-to-Peer Contracts (Deprecated)</summary>
 
 | Contract | Address |
 |----------|---------|
@@ -128,6 +142,8 @@ The original peer-to-peer contracts (`OptionManager`, `PerpetualOptionNFT`, `Fun
 | USDC Vault | [`0xc6703DEE49Bf14119e63c8fB3Fa0b60212442c7e`](https://sepolia.basescan.org/address/0xc6703DEE49Bf14119e63c8fB3Fa0b60212442c7e) |
 | WETH Vault | [`0xf5c6f1843Bf910A00B615c038565B0c1dEaA90cA`](https://sepolia.basescan.org/address/0xf5c6f1843Bf910A00B615c038565B0c1dEaA90cA) |
 | RiskParams | [`0xe24ecE1aD46657D23fcab41e0585FBA5c4E8E61C`](https://sepolia.basescan.org/address/0xe24ecE1aD46657D23fcab41e0585FBA5c4E8E61C) |
+
+</details>
 
 ---
 
